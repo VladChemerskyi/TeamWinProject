@@ -21,7 +21,7 @@ For identity management, we will use Firebase Authentication.
 It has a simple API, has integration with Flutter and .NET, and provides several sign-in providers. Also, Firebase provides a lot of other useful services as Analytics A/B testing, and so on.
 
 ## General Architecture Information
-The app will have the classic client-server model. Here is common architecture diagram: ![common architecture diagram](https://github.com/VladChemerskyi/TeamWinProject/blob/main/docs/common_architecture_diagram.png?raw=true)
+The app will have the classic client-server model. Here is common architecture diagram: ![common architecture diagram](https://github.com/VladChemerskyi/TeamWinProject/blob/main/docs/common_architecture_diagram.png?raw=true)  
 For real-time interaction we are planning to use SignalR library.
 
 The mockups of future app are in separate Folder (*docs/Mockups*)
