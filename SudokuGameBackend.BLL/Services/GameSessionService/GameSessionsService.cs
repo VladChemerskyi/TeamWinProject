@@ -21,6 +21,7 @@ namespace SudokuGameBackend.BLL.Services
         {
             var session = new GameSession(gameMode, userIds);
             sessions[session.Id] = session;
+            session.SetupActivityTimer(300, (sender, e) => sessions.TryRemove(session.Id, out _));
             return session.Id;
         }
 
@@ -31,7 +32,9 @@ namespace SudokuGameBackend.BLL.Services
 
         public bool TryGetSession(string sessionId, out GameSession gameSession)
         {
-            return sessions.TryGetValue(sessionId, out gameSession);
+            bool success = sessions.TryGetValue(sessionId, out gameSession);
+            gameSession.RefreshActivityTimer();
+            return success;
         }
     }
 }

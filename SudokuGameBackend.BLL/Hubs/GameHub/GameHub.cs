@@ -86,6 +86,10 @@ namespace SudokuGameBackend.BLL.Hubs
                         await Clients.User(userId).SendAsync("OpponentCompletionPercent", completionPercent);
                     }
                 }
+                if (session.AllUsersFinished)
+                {
+                    gameSessionsService.DeleteSession(session.Id);
+                }
             }
         }
     }
