@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Timers;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -14,6 +15,7 @@ namespace SudokuGameBackend.BLL.Services
         private readonly ConcurrentDictionary<string, UserState> userStates;
         private readonly ConcurrentDictionary<int, RegularSudoku> sudokuPuzzles;
         private GameSessionResult gameResult;
+        private System.Timers.Timer activityTimer;
 
         public string Id { get; }
         public GameMode GameMode { get; }
@@ -39,7 +41,10 @@ namespace SudokuGameBackend.BLL.Services
         }
         public bool HasWinner { get => GameResult != null; }
         public Mutex Mutex { get; }
-
+        public bool AllUsersFinished
+        {
+            get => userStates.Values.All(state => state.FinishTime.HasValue);
+        }
 
         public GameSession(GameMode gameMode, params string[] userIds)
         {
@@ -62,6 +67,25 @@ namespace SudokuGameBackend.BLL.Services
                 sudokuPuzzles[i] = sudoku;
             }
             Mutex = new Mutex();
+        }
+
+        public void SetupActivityTimer(int seconds, ElapsedEventHandler callback)
+        {
+            activityTimer = new System.Timers.Timer
+            {
+                Interval = seconds * 1000,
+                AutoReset = false
+            };
+            activityTimer.Elapsed += callback;
+            activityTimer.Start();
+        }
+
+        public void RefreshActivityTimer()
+        {
+            Mutex.WaitOne();
+            activityTimer?.Stop();
+            activityTimer?.Start();
+            Mutex.ReleaseMutex();
         }
 
         public void SetUserReady(string userId)
