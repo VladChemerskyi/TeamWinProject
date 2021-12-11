@@ -54,7 +54,7 @@ namespace SudokuGameBackend.BLL.Services
             Id = Guid.NewGuid().ToString();
 
             sudokuPuzzles = new ConcurrentDictionary<int, RegularSudoku>();
-            var ratingRanges = DifficultyMatcher.RatingRangesFromGameMode(gameMode);
+            var ratingRanges = new DifficultyMatcher().RatingRangesFromGameMode(gameMode);
             var sudokuGenerator = new RegularSudokuGenerator();
             for (int i = 0; i < ratingRanges.Length; ++i)
             {
@@ -95,7 +95,7 @@ namespace SudokuGameBackend.BLL.Services
 
         public int GetCompleteonPercent(List<RegularSudokuDto> puzzles)
         {
-            int totalEmpty = sudokuPuzzles.Sum(pair => pair.Value.BoardArray.Count(value => value == 0));
+            int totalEmpty = sudokuPuzzles.Values.Sum(puzzle => puzzle.BoardArray.Count(value => value == 0));
             int currentCorrectlyFilled = puzzles.Sum(puzzle => GetCorrectlyFilledCount(puzzle));
             int completionPercent = (int)Math.Round((double)currentCorrectlyFilled / totalEmpty * 100);
             return completionPercent;

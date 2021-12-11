@@ -10,7 +10,7 @@ namespace SudokuGameBackend.BLL.Services
 {
     public class RatingService : IRatingService
     {
-        private static readonly int coefficient = 16;
+        private readonly int coefficient = 16;
         private readonly IUnitOfWork unitOfWork;
 
         public RatingService(IUnitOfWork unitOfWork)
