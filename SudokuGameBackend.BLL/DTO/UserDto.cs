@@ -8,5 +8,6 @@ namespace SudokuGameBackend.BLL.DTO
     {
         public string Id { get; set; }
         public string CountryCode { get; set; }
+        public string Name { get; set; }
     }
 }

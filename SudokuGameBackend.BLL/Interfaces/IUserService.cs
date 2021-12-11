@@ -1,4 +1,5 @@
-﻿using SudokuGameBackend.BLL.InputModels;
+﻿using SudokuGameBackend.BLL.DTO;
+using SudokuGameBackend.BLL.InputModels;
 using System;
 using System.Collections.Generic;
 using System.Text;
@@ -9,5 +10,6 @@ namespace SudokuGameBackend.BLL.Interfaces
     public interface IUserService
     {
         Task AddUser(AddUserInput input);
+        Task<UserDto> GetUser(string id);
     }
 }

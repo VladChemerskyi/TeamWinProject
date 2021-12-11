@@ -31,6 +31,9 @@ namespace SudokuGameBackend.DAL.EF
                 .WithOne(r => r.User)
                 .HasForeignKey(r => r.UserId);
 
+            modelBuilder.Entity<User>()
+                .Property(u => u.Name).IsRequired();
+
 
             modelBuilder.Entity<SolvingRating>()
                 .HasKey(r => new { r.UserId, r.GameMode });

@@ -1,4 +1,6 @@
 ﻿using AutoMapper;
+using SudokuGameBackend.BLL.DTO;
+using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.InputModels;
 using SudokuGameBackend.BLL.Interfaces;
 using SudokuGameBackend.DAL.Entities;
@@ -26,6 +28,16 @@ namespace SudokuGameBackend.BLL.Services
             User user = mapper.Map<User>(input);
             await unitOfWork.UserRepository.CreateAsync(user);
             await unitOfWork.SaveAsync();
+        }
+
+        public async Task<UserDto> GetUser(string id)
+        {
+            User user = await unitOfWork.UserRepository.GetAsync(id);
+            if (user == null)
+            {
+                throw new ItemNotFoundException($"Item not found. Id: {id}");
+            }
+            return mapper.Map<UserDto>(user);
         }
     }
 }

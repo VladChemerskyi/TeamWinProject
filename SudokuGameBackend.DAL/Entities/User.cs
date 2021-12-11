@@ -8,6 +8,7 @@ namespace SudokuGameBackend.DAL.Entities
     {
         public string Id { get; set; }
         public string CountryCode { get; set; }
+        public string Name { get; set; }
 
         public List<DuelRating> DuelRatings { get; set; }
         public List<SolvingRating> SolvingRatings { get; set; }
