@@ -15,7 +15,7 @@ namespace SudokuGameBackend.BLL.Services
         private readonly ConcurrentDictionary<string, UserState> userStates;
         private readonly ConcurrentDictionary<int, RegularSudoku> sudokuPuzzles;
         private GameSessionResult gameResult;
-        private System.Timers.Timer activityTimer;
+        private System.Timers.Timer sessionTimer;
 
         public string Id { get; }
         public GameMode GameMode { get; }
@@ -27,7 +27,7 @@ namespace SudokuGameBackend.BLL.Services
         {
             get => userStates.Keys.ToList();
         }
-        public DateTime StartTime { get; private set; }
+        public DateTime? StartTime { get; private set; }
         public GameSessionResult GameResult
         {
             get => gameResult;
@@ -69,33 +69,31 @@ namespace SudokuGameBackend.BLL.Services
             Mutex = new Mutex();
         }
 
-        public void SetupActivityTimer(int seconds, ElapsedEventHandler callback)
+        public void SetOnSessionEndAction(Action onSessionEnd)
         {
-            activityTimer = new System.Timers.Timer
+            sessionTimer = new System.Timers.Timer
             {
-                Interval = seconds * 1000,
+                Interval = 60000,
                 AutoReset = false
             };
-            activityTimer.Elapsed += callback;
-            activityTimer.Start();
-        }
-
-        public void RefreshActivityTimer()
-        {
-            Mutex.WaitOne();
-            activityTimer?.Stop();
-            activityTimer?.Start();
-            Mutex.ReleaseMutex();
+            sessionTimer.Elapsed += (s, e) => onSessionEnd.Invoke();
+            sessionTimer.Start();
         }
 
         public void SetUserReady(string userId)
         {
             userStates[userId].IsReady = true;
+            if (AllUsersReady)
+            {
+                sessionTimer.Stop();
+            }
         }
 
         public void SetStartTime(DateTime startTime)
         {
             StartTime = startTime;
+            sessionTimer.Interval = 600000;
+            sessionTimer.Start();
         }
 
         public void SetFinishTime(string userId, DateTime finishTime)
@@ -134,9 +132,9 @@ namespace SudokuGameBackend.BLL.Services
         {
             int userTime = 0;
             var finishTime = userStates[userId].FinishTime;
-            if (finishTime.HasValue)
+            if (finishTime.HasValue && StartTime.HasValue)
             {
-                userTime = (int)(finishTime.Value - StartTime).TotalMilliseconds;
+                userTime = (int)(finishTime.Value - StartTime.Value).TotalMilliseconds;
             }
             return userTime;
         }

@@ -1,28 +1,43 @@
-﻿using SudokuGameBackend.BLL.Interfaces;
-using SudokuStandard;
-using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using SudokuGameBackend.BLL.Interfaces;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 namespace SudokuGameBackend.BLL.Services
 {
     public class GameSessionsService : IGameSessionsService
     {
         private readonly ConcurrentDictionary<string, GameSession> sessions;
+        private readonly IServiceScopeFactory serviceScopeFactory;
 
-        public GameSessionsService()
+        public GameSessionsService(IServiceScopeFactory serviceScopeFactory)
         {
             sessions = new ConcurrentDictionary<string, GameSession>();
+            this.serviceScopeFactory = serviceScopeFactory;
         }
 
         public string CreateSession(GameMode gameMode, params string[] userIds)
         {
             var session = new GameSession(gameMode, userIds);
+            session.SetOnSessionEndAction(() => OnSessionEnd(session));
             sessions[session.Id] = session;
-            session.SetupActivityTimer(300, (sender, e) => sessions.TryRemove(session.Id, out _));
             return session.Id;
+        }
+
+        private void OnSessionEnd(GameSession session)
+        {
+            if (session.UserIds.Count <= 2)
+            {
+                using var scope = serviceScopeFactory.CreateScope();
+                var ratingService = scope.ServiceProvider.GetService<IRatingService>();
+                foreach (var userId in session.UserIds)
+                {
+                    if (session.GetUserTime(userId) == 0)
+                    {
+                        ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
+                    }
+                }
+            }
+            this.DeleteSession(session.Id);
         }
 
         public void DeleteSession(string sessionId)
@@ -32,9 +47,7 @@ namespace SudokuGameBackend.BLL.Services
 
         public bool TryGetSession(string sessionId, out GameSession gameSession)
         {
-            bool success = sessions.TryGetValue(sessionId, out gameSession);
-            gameSession.RefreshActivityTimer();
-            return success;
+            return sessions.TryGetValue(sessionId, out gameSession);
         }
     }
 }
