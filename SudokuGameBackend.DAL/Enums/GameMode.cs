@@ -1,8 +1,8 @@
 ﻿
 public enum GameMode
 {
-    OnePuzzleEazy = 1,
-    OnePuzzleMedium = 2,
-    OnePuzzleHard = 3,
-    ThreePuzzles = 4
+    OnePuzzleEazy,
+    OnePuzzleMedium,
+    OnePuzzleHard,
+    ThreePuzzles
 }
