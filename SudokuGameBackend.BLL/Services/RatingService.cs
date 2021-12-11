@@ -4,6 +4,7 @@ using SudokuGameBackend.DAL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -17,10 +18,10 @@ namespace SudokuGameBackend.BLL.Services
             this.unitOfWork = unitOfWork;
         }
 
-        public Dictionary<string, int> CalculateAndSaveDuelRatings(string winnerId, string loserId, GameMode gameMode)
+        public async Task<Dictionary<string, int>> CalculateAndSaveDuelRatings(string winnerId, string loserId, GameMode gameMode)
         {
-            var winnerRating = unitOfWork.DuelRatingRepository.Get(winnerId, gameMode);
-            var loserRating = unitOfWork.DuelRatingRepository.Get(loserId, gameMode);
+            var winnerRating = await unitOfWork.DuelRatingRepository.GetAsync(winnerId, gameMode);
+            var loserRating = await unitOfWork.DuelRatingRepository.GetAsync(loserId, gameMode);
 
             int newWinnerRating = CalculateNewWinnerRating(winnerRating.Rating, loserRating.Rating);
             int newLoserRating = CalculateNewLoserRating(loserRating.Rating, winnerRating.Rating);
@@ -29,7 +30,7 @@ namespace SudokuGameBackend.BLL.Services
             loserRating.Rating = newLoserRating;
             unitOfWork.DuelRatingRepository.Update(winnerRating);
             unitOfWork.DuelRatingRepository.Update(loserRating);
-            unitOfWork.Save();
+            await unitOfWork.SaveAsync();
 
             return new Dictionary<string, int>
             {
@@ -55,9 +56,9 @@ namespace SudokuGameBackend.BLL.Services
             return CalculateUserRating(loserRating, winnerRating, false);
         }
 
-        public void UpdateSolvingRating(string userId, int time, GameMode gameMode)
+        public async Task UpdateSolvingRating(string userId, int time, GameMode gameMode)
         {
-            var rating = unitOfWork.SolvingRatingRepository.Get(userId, gameMode);
+            var rating = await unitOfWork.SolvingRatingRepository.GetAsync(userId, gameMode);
             if (rating != null)
             {
                 if (time < rating.Time)
@@ -68,24 +69,24 @@ namespace SudokuGameBackend.BLL.Services
             }
             else
             {
-                unitOfWork.SolvingRatingRepository.Create(new SolvingRating
+                await unitOfWork.SolvingRatingRepository.CreateAsync(new SolvingRating
                 {
                     UserId = userId,
                     GameMode = gameMode,
                     Time = time
                 });
             }
-            unitOfWork.Save();
+            await unitOfWork.SaveAsync();
         }
 
-        public void SetInitialDuelRating(string userId)
+        public async Task SetInitialDuelRating(string userId)
         {
             foreach (GameMode gameMode in Enum.GetValues(typeof(GameMode)))
             {
-                var rating = unitOfWork.DuelRatingRepository.Get(userId, gameMode);
+                var rating = await unitOfWork.DuelRatingRepository.GetAsync(userId, gameMode);
                 if (rating == null)
                 {
-                    unitOfWork.DuelRatingRepository.Create(new DuelRating
+                    await unitOfWork.DuelRatingRepository.CreateAsync(new DuelRating
                     {
                         UserId = userId,
                         GameMode = gameMode,
@@ -93,7 +94,7 @@ namespace SudokuGameBackend.BLL.Services
                     });
                 }
             }
-            unitOfWork.Save();
+            await unitOfWork.SaveAsync();
         }
     }
 }

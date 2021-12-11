@@ -28,7 +28,7 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task FindDuelGame(GameMode gameMode)
         {
-            var userRating = unitOfWork.DuelRatingRepository.Get(Context.UserIdentifier, gameMode).Rating;
+            var userRating = (await unitOfWork.DuelRatingRepository.GetAsync(Context.UserIdentifier, gameMode)).Rating;
             if (matchmakingService.TryFindOpponent(gameMode, userRating, out string opponentId))
             {
                 var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier, opponentId);
