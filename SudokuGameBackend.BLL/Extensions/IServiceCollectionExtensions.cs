@@ -1,5 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using AutoMapper;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using SudokuGameBackend.BLL.MapperProfiles;
 using SudokuGameBackend.DAL.EF;
 using SudokuGameBackend.DAL.Interfaces;
 using System;
@@ -14,6 +16,16 @@ namespace SudokuGameBackend.BLL.Extensions
         {
             services.AddDbContext<ApplicationDbContext>(options => options.UseSqlServer(connectionString));
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+        }
+
+        public static void AddAutoMapper(this IServiceCollection services)
+        {
+            var mappingConfig = new MapperConfiguration(mc =>
+            {
+                mc.AddProfile(new UserProfile());
+            });
+            var mapper = mappingConfig.CreateMapper();
+            services.AddSingleton(mapper);
         }
     }
 }
