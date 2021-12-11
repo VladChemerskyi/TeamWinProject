@@ -7,6 +7,7 @@ using System.Text;
 using org.mariuszgromada.math.janetsudoku;
 using System.Threading.Tasks;
 using System.Diagnostics;
+using Kermalis.SudokuSolver.Core;
 
 namespace SudokuStandard.Tests
 {
@@ -79,8 +80,30 @@ namespace SudokuStandard.Tests
             var ratingRange = RatingRange.FromDifficultyLevel(DifficultyLevel.Diabolical);
             var generator = new RegularSudokuGenerator();
             var sudoku = generator.Generate(ratingRange);
-            Console.Write(SudokuStore.boardToString(sudoku.Board));
             Assert.IsTrue(ratingRange.Matches(sudoku.Rating));
+            Assert.IsTrue(IsSolutionMatchBoard(sudoku.SolutionArray, sudoku.BoardArray));
+        }
+
+        private bool IsSolutionMatchBoard(int[] solution, int[] board)
+        {
+            if (solution.Length != board.Length)
+            {
+                return false;
+            }
+            var solver = new Solver(new Puzzle(Get2DBoardArray(board)));
+            solver.Solve(out _);
+            var currentSolution = solver.Puzzle.GetBoardArray();
+            return Enumerable.SequenceEqual(solution, currentSolution);
+        }
+
+        private int[,] Get2DBoardArray(int[] board)
+        {
+            int[,] board2D = new int[9, 9];
+            for (int i = 0; i < board.Length; ++i)
+            {
+                board2D[i / 9, i % 9] = board[i];
+            }
+            return board2D;
         }
 
         private double CalculateAverage(Action func, int iters)

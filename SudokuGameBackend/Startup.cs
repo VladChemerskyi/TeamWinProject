@@ -1,3 +1,4 @@
+using Invio.Extensions.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using SudokuGameBackend.BLL.Extensions;
+using SudokuGameBackend.BLL.Hubs;
 using SudokuGameBackend.BLL.Interfaces;
 using SudokuGameBackend.BLL.Services;
 using System;
@@ -28,9 +30,14 @@ namespace SudokuGameBackend
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddTransient<IUserService, UserService>();
+            services.AddSingleton<IGameSessionsService, GameSessionsService>();
+            services.AddSingleton<IMatchmakingService, MatchmakingService>();
+
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<IRatingService, RatingService>();
 
             services.AddControllers();
+            services.AddSignalR();
 
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
@@ -44,6 +51,7 @@ namespace SudokuGameBackend
                         ValidAudience = "sudokugameapp",
                         ValidateLifetime = true
                     };
+                    options.AddQueryStringAuthentication();
                 });
 
             services.AddDalDependencies(Configuration.GetConnectionString("DevConnection"));
@@ -70,6 +78,8 @@ namespace SudokuGameBackend
                 });
 
                 endpoints.MapControllers();
+                endpoints.MapHub<MatchmakerHub>("/matchmaker");
+                endpoints.MapHub<GameHub>("/game");
             });
         }
     }

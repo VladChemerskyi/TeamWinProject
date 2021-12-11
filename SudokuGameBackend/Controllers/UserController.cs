@@ -15,10 +15,12 @@ namespace SudokuGameBackend.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserService userService;
+        private readonly IRatingService ratingService;
 
-        public UserController(IUserService userService)
+        public UserController(IUserService userService, IRatingService ratingService)
         {
             this.userService = userService;
+            this.ratingService = ratingService;
         }
 
         [Authorize]
@@ -27,6 +29,7 @@ namespace SudokuGameBackend.Controllers
         public void AddUser(AddUserInput input)
         {
             userService.AddUser(input);
+            ratingService.SetInitialDuelRating(input.Id);
         }
     }
 }
