@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "z4GbCgYGVtVsPfd8SsHQAuBH9ic+kmtdW2kD7vby4nfNyE+/jKFiS6UHkzV/Mt4cK0w9zm0C9LlcoPvt1LwgXg==",
+  "success": true,
+  "projectFilePath": "D:\\універ\\ооа\\SudokuPlusBackend\\Janet-Sudoku-Standard\\Janet-Sudoku-Standard.csproj",
+  "expectedPackageFiles": [
+    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder\\microsoft.netcore.platforms\\1.1.0\\microsoft.netcore.platforms.1.1.0.nupkg.sha512",
+    "C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder\\netstandard.library\\2.0.3\\netstandard.library.2.0.3.nupkg.sha512"
+  ],
+  "logs": []
+}
