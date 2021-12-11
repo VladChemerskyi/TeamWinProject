@@ -195,5 +195,18 @@ namespace Kermalis.SudokuSolver.Core
         {
             return string.Format(string.Format("{0,-20}", technique) + format, args);
         }
+
+        public int[] GetBoardArray()
+        {
+            int[] boardArray = new int[81];
+            for (int i = 0; i < 9; ++i)
+            {
+                for (int k = 0; k < 9; ++k)
+                {
+                    boardArray[i * 9 + k] = _board[i][k].Value;
+                }
+            }
+            return boardArray;
+        }
     }
 }

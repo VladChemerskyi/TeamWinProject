@@ -80,6 +80,7 @@ namespace SudokuStandard
             int maxIterations = 60;
             var availableCells = Enumerable.Range(0, 81).ToList();
             var board = GenerateRandomBoard();
+            var solution = (int[,])board.Clone();
             while (!ratingRange.Matches(rating))
             {
                 if (iterations >= maxIterations)
@@ -119,7 +120,7 @@ namespace SudokuStandard
                 }
 
             }
-            return new RegularSudoku(board, rating);
+            return new RegularSudoku(board, solution, rating);
         }
 
         private int EraseCell(int[,] board, Cell cell)

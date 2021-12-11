@@ -1,10 +1,13 @@
-﻿using SudokuGameBackend.DAL.EF;
+﻿using Microsoft.EntityFrameworkCore;
+using SudokuGameBackend.DAL.EF;
 using SudokuGameBackend.DAL.Entities;
 using SudokuGameBackend.DAL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.DAL.Repositories
 {
@@ -22,6 +25,11 @@ namespace SudokuGameBackend.DAL.Repositories
             dbContext.DuelLeaderboard.Add(duelRating);
         }
 
+        public async Task CreateAsync(DuelRating duelRating)
+        {
+            await dbContext.DuelLeaderboard.AddAsync(duelRating);
+        }
+
         public void Delete(string userId, GameMode gameMode)
         {
             DuelRating duelRating = dbContext.DuelLeaderboard.Find(userId, gameMode);
@@ -31,9 +39,23 @@ namespace SudokuGameBackend.DAL.Repositories
             }
         }
 
-        public IEnumerable<DuelRating> Find(Func<DuelRating, bool> predicate)
+        public async Task DeleteAsync(string userId, GameMode gameMode)
         {
-            return dbContext.DuelLeaderboard.Where(predicate);
+            DuelRating duelRating = await dbContext.DuelLeaderboard.FindAsync(userId, gameMode);
+            if (duelRating != null)
+            {
+                dbContext.DuelLeaderboard.Remove(duelRating);
+            }
+        }
+
+        public ICollection<DuelRating> Find(Expression<Func<DuelRating, bool>> predicate)
+        {
+            return dbContext.DuelLeaderboard.Where(predicate).ToList();
+        }
+
+        public async Task<ICollection<DuelRating>> FindAsync(Expression<Func<DuelRating, bool>> predicate)
+        {
+            return await dbContext.DuelLeaderboard.Where(predicate).ToListAsync();
         }
 
         public DuelRating Get(string userId, GameMode gameMode)
@@ -41,9 +63,19 @@ namespace SudokuGameBackend.DAL.Repositories
             return dbContext.DuelLeaderboard.Find(userId, gameMode);
         }
 
-        public IEnumerable<DuelRating> GetAll()
+        public async Task<DuelRating> GetAsync(string userId, GameMode gameMode)
         {
-            return dbContext.DuelLeaderboard;
+            return await dbContext.DuelLeaderboard.FindAsync(userId, gameMode);
+        }
+
+        public ICollection<DuelRating> GetAll()
+        {
+            return dbContext.DuelLeaderboard.ToList();
+        }
+
+        public async Task<ICollection<DuelRating>> GetAllAsync()
+        {
+            return await dbContext.DuelLeaderboard.ToListAsync();
         }
 
         public void Update(DuelRating duelRating)
