@@ -17,6 +17,8 @@ namespace SudokuGameBackend.BLL.Services
         private readonly ConcurrentDictionary<int, RegularSudoku> sudokuPuzzles;
         private GameSessionResult gameResult;
         private System.Timers.Timer sessionTimer;
+        private readonly ElapsedEventHandler onSessionAborted;
+        private readonly ElapsedEventHandler onSessionEnded;
 
         public string Id { get; }
         public GameMode GameMode { get; }
@@ -47,9 +49,11 @@ namespace SudokuGameBackend.BLL.Services
             get => userStates.Values.All(state => state.FinishTime.HasValue);
         }
 
-        public GameSession(GameMode gameMode, params string[] userIds)
+        public GameSession(GameMode gameMode, Func<GameSession, Task> onSessionAborted, Func<GameSession, Task> onSessionEnded, params string[] userIds)
         {
             GameMode = gameMode;
+            this.onSessionAborted = async (s, e) => await onSessionAborted.Invoke(this);
+            this.onSessionEnded = async (s, e) => await onSessionEnded.Invoke(this);
 
             userStates = new ConcurrentDictionary<string, UserState>();
             foreach (var userId in userIds)
@@ -68,17 +72,14 @@ namespace SudokuGameBackend.BLL.Services
                 sudokuPuzzles[i] = sudoku;
             }
             Semaphore = new Semaphore(1, 1);
-        }
 
-        public void SetOnSessionEndAction(Func<Task> onSessionEnd)
-        {
             sessionTimer = new System.Timers.Timer
             {
-                // One minute for users to connect.
-                Interval = 60000,
+                // Ten seconds for users to connect.
+                Interval = 10000,
                 AutoReset = false
             };
-            sessionTimer.Elapsed += async (s, e) => await onSessionEnd.Invoke();
+            sessionTimer.Elapsed += this.onSessionAborted;
             sessionTimer.Start();
         }
 
@@ -96,6 +97,8 @@ namespace SudokuGameBackend.BLL.Services
             StartTime = startTime;
             // 10 minutes for game session.
             sessionTimer.Interval = 600000;
+            sessionTimer.Elapsed -= onSessionAborted;
+            sessionTimer.Elapsed += onSessionEnded;
             sessionTimer.Start();
         }
 

@@ -1,4 +1,5 @@
-﻿using SudokuGameBackend.BLL.Exceptions;
+﻿using Microsoft.Extensions.Logging;
+using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.Interfaces;
 using SudokuGameBackend.DAL.Entities;
 using SudokuGameBackend.DAL.Interfaces;
@@ -13,10 +14,12 @@ namespace SudokuGameBackend.BLL.Services
     {
         private readonly int maxRatingDeltaForGame = 16;
         private readonly IUnitOfWork unitOfWork;
+        private readonly ILogger<RatingService> logger;
 
-        public RatingService(IUnitOfWork unitOfWork)
+        public RatingService(IUnitOfWork unitOfWork, ILogger<RatingService> logger)
         {
             this.unitOfWork = unitOfWork;
+            this.logger = logger;
         }
 
         public async Task<Dictionary<string, int>> CalculateDuelRatings(string winnerId, string loserId, GameMode gameMode)
@@ -37,9 +40,11 @@ namespace SudokuGameBackend.BLL.Services
         public async Task UpdateDuelRating(string userId, GameMode gameMode, int rating)
         {
             var duelRating = await unitOfWork.DuelRatingRepository.GetAsync(userId, gameMode);
+            logger.LogDebug($"UpdateDuelRating. userId: {userId}, gameMode: {gameMode}, oldRating: {duelRating.Rating}, newRating: {rating}");
             duelRating.Rating = rating;
             unitOfWork.DuelRatingRepository.Update(duelRating);
             await unitOfWork.SaveAsync();
+            logger.LogTrace($"UpdateDuelRating success. userId: {userId}, gameMode: {gameMode}");
         }
 
         private int CalculateUserRating(int currentUserRating, int currentOpponentRating, bool isWinner)
@@ -66,12 +71,14 @@ namespace SudokuGameBackend.BLL.Services
             {
                 if (time < rating.Time)
                 {
+                    logger.LogDebug($"UpdateSolvingRating. userId: {userId}, gameMode: {gameMode}, oldTime: {rating.Time}, newTime: {time}");
                     rating.Time = time;
                 }
                 unitOfWork.SolvingRatingRepository.Update(rating);
             }
             else
             {
+                logger.LogDebug($"UpdateSolvingRating. userId: {userId}, gameMode: {gameMode}, newTime: {time}");
                 await unitOfWork.SolvingRatingRepository.CreateAsync(new SolvingRating
                 {
                     UserId = userId,
@@ -80,6 +87,7 @@ namespace SudokuGameBackend.BLL.Services
                 });
             }
             await unitOfWork.SaveAsync();
+            logger.LogTrace($"UpdateSolvingRating success. userId: {userId}, gameMode: {gameMode}");
         }
 
         public async Task SetInitialDuelRating(string userId)
@@ -98,6 +106,7 @@ namespace SudokuGameBackend.BLL.Services
                 }
             }
             await unitOfWork.SaveAsync();
+            logger.LogDebug($"SetInitialDuelRating success. userId: {userId}");
         }
 
         public async Task<int> RemoveDuelRatingForInactivity(string userId, GameMode gameMode)

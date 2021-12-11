@@ -12,5 +12,10 @@ namespace SudokuGameBackend.BLL.InputModels
         [Required]
         public string Name { get; set; }
         public string CountryCode { get; set; }
+
+        public override string ToString()
+        {
+            return $"AddUserInput(Id: {Id}, Name: {Name}, CountryCode: {CountryCode})";
+        }
     }
 }

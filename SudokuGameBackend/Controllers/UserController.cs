@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using SudokuGameBackend.BLL.DTO;
 using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.InputModels;
@@ -19,11 +20,13 @@ namespace SudokuGameBackend.Controllers
     {
         private readonly IUserService userService;
         private readonly IRatingService ratingService;
+        private readonly ILogger<UserController> logger;
 
-        public UserController(IUserService userService, IRatingService ratingService)
+        public UserController(IUserService userService, IRatingService ratingService, ILogger<UserController> logger)
         {
             this.userService = userService;
             this.ratingService = ratingService;
+            this.logger = logger;
         }
 
         [HttpPost]
@@ -31,6 +34,7 @@ namespace SudokuGameBackend.Controllers
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult> AddUser(AddUserInput input)
         {
+            logger.LogDebug($"AddUser. {input}");
             ActionResult result;
             if (ModelState.IsValid)
             {
@@ -42,11 +46,13 @@ namespace SudokuGameBackend.Controllers
                 }
                 catch (Exception ex)
                 {
+                    logger.LogWarning($"AddUser exception. {input}, {ex}");
                     result = BadRequest();
                 }
             }
             else
             {
+                logger.LogWarning($"AddUser. Validation failed. {input}");
                 result = BadRequest(ModelState);
             }
             return result;
@@ -63,6 +69,7 @@ namespace SudokuGameBackend.Controllers
             }
             catch (ItemNotFoundException ex)
             {
+                logger.LogWarning($"GetUser. User not found. userId: {id}");
                 return NotFound(new { error = ex.Message });
             }
         }

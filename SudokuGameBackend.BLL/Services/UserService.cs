@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using SudokuGameBackend.BLL.DTO;
 using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.InputModels;
@@ -16,11 +17,13 @@ namespace SudokuGameBackend.BLL.Services
     {
         private readonly IUnitOfWork unitOfWork;
         private readonly IMapper mapper;
+        private readonly ILogger<UserService> logger;
 
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper)
+        public UserService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserService> logger)
         {
             this.unitOfWork = unitOfWork;
             this.mapper = mapper;
+            this.logger = logger;
         }
 
         public async Task AddUser(AddUserInput input)
@@ -28,6 +31,7 @@ namespace SudokuGameBackend.BLL.Services
             User user = mapper.Map<User>(input);
             await unitOfWork.UserRepository.CreateAsync(user);
             await unitOfWork.SaveAsync();
+            logger.LogDebug($"AddUser success. {input}");
         }
 
         public async Task<UserDto> GetUser(string id)

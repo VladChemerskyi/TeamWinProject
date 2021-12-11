@@ -8,6 +8,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using SudokuGameBackend.BLL.Services;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.Extensions.Logging;
 
 namespace SudokuGameBackend.BLL.Hubs
 {
@@ -17,32 +18,46 @@ namespace SudokuGameBackend.BLL.Hubs
         private readonly IGameSessionsService gameSessionsService;
         private readonly IRatingService ratingService;
         private readonly IUserService userService;
+        private readonly ILogger<GameHub> logger;
 
-        public GameHub(IGameSessionsService gameSessionsService, IRatingService ratingService, IUserService userService)
+        public GameHub(
+            IGameSessionsService gameSessionsService, 
+            IRatingService ratingService, 
+            IUserService userService,
+            ILogger<GameHub> logger)
         {
             this.gameSessionsService = gameSessionsService;
             this.ratingService = ratingService;
             this.userService = userService;
+            this.logger = logger;
         }
 
         public async Task GameInit(string sessionId)
         {
+            logger.LogDebug($"GameInit. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
             if (gameSessionsService.TryGetSession(sessionId, out var session))
             {
                 await Clients.Caller.SendAsync("PlayersInfo", await GetPlayersInfo(session));
+                logger.LogTrace($"PlayersInfo sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                 session.SetUserConnectionId(Context.UserIdentifier, Context.ConnectionId);
                 session.SetUserReady(Context.UserIdentifier);
                 if (session.AllUsersReady)
                 {
+                    logger.LogDebug($"Session.AllUsersReady. sessionId: {sessionId}");
                     var userIds = session.UserIds;
                     var tasks = new Task[userIds.Count];
                     for (int i = 0; i < userIds.Count; i++)
                     {
                         tasks[i] = Clients.User(userIds[i]).SendAsync("GameStarted", session.GetPuzzlesDto());
+                        logger.LogTrace($"GameStarted sent. userId: {userIds[i]}, sessionId: {sessionId}");
                     }
                     await Task.WhenAll(tasks);
                     session.SetStartTime(DateTime.Now);
                 }
+            }
+            else
+            {
+                logger.LogWarning($"GameInit. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
             }
         }
 
@@ -73,14 +88,17 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task UpdateProgress(string sessionId, List<RegularSudokuDto> sudokuDtos)
         {
+            logger.LogDebug($"UpdateProgress. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
             if (gameSessionsService.TryGetSession(sessionId, out var session))
             {
                 if (session.IsSolved(sudokuDtos))
                 {
                     session.SetFinishTime(Context.UserIdentifier, DateTime.Now);
+                    logger.LogDebug($"User solved puzzle. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                     session.Semaphore.WaitOne();
                     if (!session.HasWinner)
                     {
+                        logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                         if (session.UserIds.Count == 2)
                         {
                             var winnerId = Context.UserIdentifier;
@@ -108,8 +126,11 @@ namespace SudokuGameBackend.BLL.Hubs
                         Time = session.GetUserTime(Context.UserIdentifier)
                     };
                     session.Semaphore.Release();
+                    logger.LogDebug($"User result. userId: {Context.UserIdentifier}, sessionId: {sessionId}," + 
+                        $" isVictory: {gameResult.IsVictory}, newDuelRating: {gameResult.NewDuelRating}, time: {gameResult.Time}");
                     await ratingService.UpdateSolvingRating(Context.UserIdentifier, gameResult.Time, session.GameMode);
                     await Clients.Caller.SendAsync("GameResult", gameResult);
+                    logger.LogTrace($"GameResult sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                 }
                 var completionPercent = session.GetCompleteonPercent(sudokuDtos);
                 foreach (var userId in session.UserIds)
@@ -117,12 +138,17 @@ namespace SudokuGameBackend.BLL.Hubs
                     if (userId != Context.UserIdentifier)
                     {
                         await Clients.User(userId).SendAsync("OpponentCompletionPercent", completionPercent);
+                        logger.LogTrace($"OpponentCompletionPercent sent. userId: {userId}, sessionId: {sessionId}");
                     }
                 }
                 if (session.AllUsersFinished)
                 {
                     gameSessionsService.DeleteSession(session.Id);
                 }
+            }
+            else
+            {
+                logger.LogWarning($"UpdateProgress. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
             }
         }
     }
