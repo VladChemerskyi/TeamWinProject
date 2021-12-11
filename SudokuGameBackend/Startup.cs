@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.IdentityModel.Tokens;
 using SudokuGameBackend.BLL.Extensions;
+using SudokuGameBackend.BLL.Interfaces;
+using SudokuGameBackend.BLL.Services;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -26,6 +28,10 @@ namespace SudokuGameBackend
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            services.AddTransient<IUserService, UserService>();
+
+            services.AddControllers();
+
             services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
                 .AddJwtBearer(options =>
                 {
@@ -41,6 +47,7 @@ namespace SudokuGameBackend
                 });
 
             services.AddDalDependencies(Configuration.GetConnectionString("DevConnection"));
+            services.AddAutoMapper();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
