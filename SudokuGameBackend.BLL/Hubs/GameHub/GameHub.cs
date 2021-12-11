@@ -56,7 +56,11 @@ namespace SudokuGameBackend.BLL.Hubs
                         {
                             var winnerId = Context.UserIdentifier;
                             var loserId = session.UserIds.Where(id => id != winnerId).First();
-                            var ratings = ratingService.CalculateAndSaveDuelRatings(winnerId, loserId, session.GameMode);
+                            var ratings = await ratingService.CalculateDuelRatings(winnerId, loserId, session.GameMode);
+                            foreach (var pair in ratings)
+                            {
+                                await ratingService.UpdateDuelRating(pair.Key, session.GameMode, pair.Value);
+                            }
                             session.GameResult = new GameSessionResult(winnerId, ratings);
                         }
                         else if (session.UserIds.Count == 1)
@@ -75,7 +79,7 @@ namespace SudokuGameBackend.BLL.Hubs
                         Time = session.GetUserTime(Context.UserIdentifier)
                     };
                     session.Mutex.ReleaseMutex();
-                    ratingService.UpdateSolvingRating(Context.UserIdentifier, gameResult.Time, session.GameMode);
+                    await ratingService.UpdateSolvingRating(Context.UserIdentifier, gameResult.Time, session.GameMode);
                     await Clients.Caller.SendAsync("GameResult", gameResult);
                 }
                 var completionPercent = session.GetCompleteonPercent(sudokuDtos);
@@ -85,6 +89,10 @@ namespace SudokuGameBackend.BLL.Hubs
                     {
                         await Clients.User(userId).SendAsync("OpponentCompletionPercent", completionPercent);
                     }
+                }
+                if (session.AllUsersFinished)
+                {
+                    gameSessionsService.DeleteSession(session.Id);
                 }
             }
         }

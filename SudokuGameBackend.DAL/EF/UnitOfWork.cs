@@ -3,6 +3,7 @@ using SudokuGameBackend.DAL.Repositories;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.DAL.EF
 {
@@ -57,6 +58,11 @@ namespace SudokuGameBackend.DAL.EF
         public void Save()
         {
             dbContext.SaveChanges();
+        }
+
+        public async Task SaveAsync()
+        {
+            await dbContext.SaveChangesAsync();
         }
     }
 }

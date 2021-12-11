@@ -6,6 +6,7 @@ using SudokuGameBackend.DAL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -20,11 +21,11 @@ namespace SudokuGameBackend.BLL.Services
             this.mapper = mapper;
         }
 
-        public void AddUser(AddUserInput input)
+        public async Task AddUser(AddUserInput input)
         {
             User user = mapper.Map<User>(input);
-            unitOfWork.UserRepository.Create(user);
-            unitOfWork.Save();
+            await unitOfWork.UserRepository.CreateAsync(user);
+            await unitOfWork.SaveAsync();
         }
     }
 }

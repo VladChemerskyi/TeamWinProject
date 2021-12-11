@@ -5,7 +5,9 @@ using SudokuGameBackend.DAL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.DAL.Repositories
 {
@@ -23,6 +25,11 @@ namespace SudokuGameBackend.DAL.Repositories
             dbContext.Users.Add(user);
         }
 
+        public async Task CreateAsync(User user)
+        {
+            await dbContext.Users.AddAsync(user);
+        }
+
         public void Delete(string userId)
         {
             User user = dbContext.Users.Find(userId);
@@ -32,9 +39,23 @@ namespace SudokuGameBackend.DAL.Repositories
             }
         }
 
-        public IEnumerable<User> Find(Func<User, bool> predicate)
+        public async Task DeleteAsync(string userId)
         {
-            return dbContext.Users.Where(predicate);
+            User user = await dbContext.Users.FindAsync(userId);
+            if (user != null)
+            {
+                dbContext.Users.Remove(user);
+            }
+        }
+
+        public ICollection<User> Find(Expression<Func<User, bool>> predicate)
+        {
+            return dbContext.Users.Where(predicate).ToList();
+        }
+
+        public async Task<ICollection<User>> FindAsync(Expression<Func<User, bool>> predicate)
+        {
+            return await dbContext.Users.Where(predicate).ToListAsync();
         }
 
         public User Get(string userId)
@@ -42,9 +63,19 @@ namespace SudokuGameBackend.DAL.Repositories
             return dbContext.Users.Find(userId);
         }
 
-        public IEnumerable<User> GetAll()
+        public async Task<User> GetAsync(string userId)
         {
-            return dbContext.Users;
+            return await dbContext.Users.FindAsync(userId);
+        }
+
+        public ICollection<User> GetAll()
+        {
+            return dbContext.Users.ToList();
+        }
+
+        public async Task<ICollection<User>> GetAllAsync()
+        {
+            return await dbContext.Users.ToListAsync();
         }
 
         public void Update(User user)
