@@ -26,12 +26,19 @@ namespace SudokuGameBackend.BLL.Services
             mutex.ReleaseMutex();
         }
 
-        public bool TryFindOpponent(GameMode gameMode, int rating, out string opponentId)
+        public void RemoveFromQueue(string userId)
+        {
+            mutex.WaitOne();
+            queue.RemoveAll(item => item.UserId == userId);
+            mutex.ReleaseMutex();
+        }
+
+        public bool TryFindOpponent(GameMode gameMode, int rating, string userId, out string opponentId)
         {
             bool opponentFound = false;
             opponentId = null;
             mutex.WaitOne();
-            var mathcedItem = queue.FirstOrDefault(item => item.Match(gameMode, rating));
+            var mathcedItem = queue.FirstOrDefault(item => userId != item.UserId && item.Match(gameMode, rating));
             if (mathcedItem != null)
             {
                 queue.Remove(mathcedItem);

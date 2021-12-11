@@ -23,7 +23,7 @@ namespace SudokuGameBackend.BLL.Hubs
             this.ratingService = ratingService;
         }
 
-        public async void GameInit(string sessionId)
+        public async Task GameInit(string sessionId)
         {
             if (gameSessionsService.TryGetSession(sessionId, out var session))
             {
@@ -42,14 +42,14 @@ namespace SudokuGameBackend.BLL.Hubs
             }
         }
 
-        public async void UpdateProgress(string sessionId, List<RegularSudokuDto> sudokuDtos)
+        public async Task UpdateProgress(string sessionId, List<RegularSudokuDto> sudokuDtos)
         {
             if (gameSessionsService.TryGetSession(sessionId, out var session))
             {
                 if (session.IsSolved(sudokuDtos))
                 {
                     session.SetFinishTime(Context.UserIdentifier, DateTime.Now);
-                    session.Mutex.WaitOne();
+                    session.Semaphore.WaitOne();
                     if (!session.HasWinner)
                     {
                         if (session.UserIds.Count == 2)
@@ -78,7 +78,7 @@ namespace SudokuGameBackend.BLL.Hubs
                         NewDuelRating = session.GameResult.NewRatings[Context.UserIdentifier],
                         Time = session.GetUserTime(Context.UserIdentifier)
                     };
-                    session.Mutex.ReleaseMutex();
+                    session.Semaphore.Release();
                     await ratingService.UpdateSolvingRating(Context.UserIdentifier, gameResult.Time, session.GameMode);
                     await Clients.Caller.SendAsync("GameResult", gameResult);
                 }

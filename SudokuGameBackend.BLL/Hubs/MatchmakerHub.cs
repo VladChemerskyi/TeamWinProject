@@ -28,8 +28,9 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task FindDuelGame(GameMode gameMode)
         {
+            // TODO: Check gameMode.
             var userRating = (await unitOfWork.DuelRatingRepository.GetAsync(Context.UserIdentifier, gameMode)).Rating;
-            if (matchmakingService.TryFindOpponent(gameMode, userRating, out string opponentId))
+            if (matchmakingService.TryFindOpponent(gameMode, userRating, Context.UserIdentifier, out string opponentId))
             {
                 var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier, opponentId);
                 await Clients.Caller.SendAsync("GameFound", sessionId);
@@ -39,6 +40,11 @@ namespace SudokuGameBackend.BLL.Hubs
             {
                 matchmakingService.AddToQueue(Context.UserIdentifier, userRating, gameMode);
             }
+        }
+
+        public async Task RemoveFromQueue()
+        {
+            await Task.Run(() => matchmakingService.RemoveFromQueue(Context.UserIdentifier));
         }
 
         public async Task CreateSinglePlayerGame(GameMode gameMode)

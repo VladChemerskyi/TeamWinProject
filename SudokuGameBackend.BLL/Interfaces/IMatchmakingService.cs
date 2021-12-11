@@ -6,7 +6,8 @@ namespace SudokuGameBackend.BLL.Interfaces
 {
     public interface IMatchmakingService
     {
-        bool TryFindOpponent(GameMode gameMode, int rating, out string opponentId);
+        bool TryFindOpponent(GameMode gameMode, int rating, string userId, out string opponentId);
+        void RemoveFromQueue(string userId);
         void AddToQueue(string userId, int rating, GameMode gameMode);
     }
 }

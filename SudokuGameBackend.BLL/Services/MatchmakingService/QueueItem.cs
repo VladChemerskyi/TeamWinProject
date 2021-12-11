@@ -19,7 +19,8 @@ namespace SudokuGameBackend.BLL.Services
 
         public bool Match(GameMode gameMode, int rating)
         {
-            return GameMode == gameMode && Rating == rating;
+            // TODO: Add additional match logic.
+            return GameMode == gameMode;
         }
     }
 }

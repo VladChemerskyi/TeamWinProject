@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Timers;
 
 namespace SudokuGameBackend.BLL.Services
@@ -40,7 +41,7 @@ namespace SudokuGameBackend.BLL.Services
             }
         }
         public bool HasWinner { get => GameResult != null; }
-        public Mutex Mutex { get; }
+        public Semaphore Semaphore { get; }
         public bool AllUsersFinished
         {
             get => userStates.Values.All(state => state.FinishTime.HasValue);
@@ -66,17 +67,18 @@ namespace SudokuGameBackend.BLL.Services
                 var sudoku = sudokuGenerator.Generate(ratingRanges[i]);
                 sudokuPuzzles[i] = sudoku;
             }
-            Mutex = new Mutex();
+            Semaphore = new Semaphore(1, 1);
         }
 
-        public void SetOnSessionEndAction(Action onSessionEnd)
+        public void SetOnSessionEndAction(Func<Task> onSessionEnd)
         {
             sessionTimer = new System.Timers.Timer
             {
+                // One minute for users to connect.
                 Interval = 60000,
                 AutoReset = false
             };
-            sessionTimer.Elapsed += (s, e) => onSessionEnd.Invoke();
+            sessionTimer.Elapsed += async (s, e) => await onSessionEnd.Invoke();
             sessionTimer.Start();
         }
 
@@ -92,6 +94,7 @@ namespace SudokuGameBackend.BLL.Services
         public void SetStartTime(DateTime startTime)
         {
             StartTime = startTime;
+            // 10 minutes for game session.
             sessionTimer.Interval = 600000;
             sessionTimer.Start();
         }

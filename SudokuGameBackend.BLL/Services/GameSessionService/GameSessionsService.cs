@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using SudokuGameBackend.BLL.Interfaces;
 using System.Collections.Concurrent;
+using System.Threading.Tasks;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -15,15 +16,16 @@ namespace SudokuGameBackend.BLL.Services
             this.serviceScopeFactory = serviceScopeFactory;
         }
 
+        // TODO: Make things async.
         public string CreateSession(GameMode gameMode, params string[] userIds)
         {
             var session = new GameSession(gameMode, userIds);
-            session.SetOnSessionEndAction(() => OnSessionEnd(session));
+            session.SetOnSessionEndAction(async () => await OnSessionEnd(session));
             sessions[session.Id] = session;
             return session.Id;
         }
 
-        private void OnSessionEnd(GameSession session)
+        private async Task OnSessionEnd(GameSession session)
         {
             if (session.UserIds.Count <= 2)
             {
@@ -33,7 +35,7 @@ namespace SudokuGameBackend.BLL.Services
                 {
                     if (session.GetUserTime(userId) == 0)
                     {
-                        ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
+                        await ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
                     }
                 }
             }
