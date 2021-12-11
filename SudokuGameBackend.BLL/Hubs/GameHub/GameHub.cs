@@ -16,17 +16,21 @@ namespace SudokuGameBackend.BLL.Hubs
     {
         private readonly IGameSessionsService gameSessionsService;
         private readonly IRatingService ratingService;
+        private readonly IUserService userService;
 
-        public GameHub(IGameSessionsService gameSessionsService, IRatingService ratingService)
+        public GameHub(IGameSessionsService gameSessionsService, IRatingService ratingService, IUserService userService)
         {
             this.gameSessionsService = gameSessionsService;
             this.ratingService = ratingService;
+            this.userService = userService;
         }
 
         public async Task GameInit(string sessionId)
         {
             if (gameSessionsService.TryGetSession(sessionId, out var session))
             {
+                await Clients.Caller.SendAsync("PlayersInfo", await GetPlayersInfo(session));
+                session.SetUserConnectionId(Context.UserIdentifier, Context.ConnectionId);
                 session.SetUserReady(Context.UserIdentifier);
                 if (session.AllUsersReady)
                 {
@@ -40,6 +44,31 @@ namespace SudokuGameBackend.BLL.Hubs
                     session.SetStartTime(DateTime.Now);
                 }
             }
+        }
+
+        private async Task<List<UserInfo>> GetPlayersInfo(GameSession session)
+        {
+            var playerInfo = await GetUserInfo(Context.UserIdentifier, session.GameMode);
+            var usersInfo = new List<UserInfo>(session.UserIds.Count) { playerInfo };
+            foreach (var userId in session.UserIds)
+            {
+                if (userId != Context.UserIdentifier)
+                {
+                    usersInfo.Add(await GetUserInfo(userId, session.GameMode));
+                }
+            }
+            return usersInfo;
+        }
+
+        private async Task<UserInfo> GetUserInfo(string userId, GameMode gameMode)
+        {
+            var user = await userService.GetUser(userId);
+            var userRating = await ratingService.GetUserRating(userId, gameMode);
+            return new UserInfo
+            {
+                Name = user.Name,
+                Rating = userRating
+            };
         }
 
         public async Task UpdateProgress(string sessionId, List<RegularSudokuDto> sudokuDtos)

@@ -142,6 +142,16 @@ namespace SudokuGameBackend.BLL.Services
             return userTime;
         }
 
+        public void SetUserConnectionId(string userId, string connectionId)
+        {
+            userStates[userId].ConnectionId = connectionId;
+        }
+
+        public string GetUserConnectionId(string userId)
+        {
+            return userStates[userId].ConnectionId;
+        }
+
         private int GetCorrectlyFilledCount(RegularSudokuDto sudokuDto)
         {
             var puzzle = sudokuPuzzles[sudokuDto.Id];

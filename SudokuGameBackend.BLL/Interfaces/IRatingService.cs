@@ -11,6 +11,7 @@ namespace SudokuGameBackend.BLL.Interfaces
         Task UpdateSolvingRating(string userId, int time, GameMode gameMode);
         Task SetInitialDuelRating(string userId);
         Task UpdateDuelRating(string userId, GameMode gameMode, int rating);
-        Task RemoveDuelRatingForInactivity(string userId, GameMode gameMode);
+        Task<int> RemoveDuelRatingForInactivity(string userId, GameMode gameMode);
+        Task<int> GetUserRating(string userId, GameMode gameMode);
     }
 }

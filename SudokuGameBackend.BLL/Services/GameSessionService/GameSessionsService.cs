@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
+using SudokuGameBackend.BLL.Hubs;
 using SudokuGameBackend.BLL.Interfaces;
 using System.Collections.Concurrent;
 using System.Threading.Tasks;
@@ -31,11 +33,13 @@ namespace SudokuGameBackend.BLL.Services
             {
                 using var scope = serviceScopeFactory.CreateScope();
                 var ratingService = scope.ServiceProvider.GetService<IRatingService>();
+                var gameHubContext = scope.ServiceProvider.GetService<IHubContext<GameHub>>();
                 foreach (var userId in session.UserIds)
                 {
                     if (session.GetUserTime(userId) == 0)
                     {
-                        await ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
+                        int newRating = await ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
+                        await gameHubContext.Clients.Client(session.GetUserConnectionId(userId)).SendAsync("GameTimeExpired", newRating);
                     }
                 }
             }

@@ -1,4 +1,5 @@
-﻿using SudokuGameBackend.BLL.Interfaces;
+﻿using SudokuGameBackend.BLL.Exceptions;
+using SudokuGameBackend.BLL.Interfaces;
 using SudokuGameBackend.DAL.Entities;
 using SudokuGameBackend.DAL.Interfaces;
 using System;
@@ -43,8 +44,8 @@ namespace SudokuGameBackend.BLL.Services
 
         private int CalculateUserRating(int currentUserRating, int currentOpponentRating, bool isWinner)
         {
-            double expected = 1 / (1 + Math.Pow(10, (currentOpponentRating - currentUserRating) / 400));
-            int newUserRating = currentUserRating + (int)Math.Round(maxRatingDeltaForGame * (isWinner ? 1 : 0 - expected));
+            double expected = 1 / (1 + Math.Pow(10, (currentOpponentRating - currentUserRating) / 400d));
+            int newUserRating = currentUserRating + (int)Math.Round(maxRatingDeltaForGame * ((isWinner ? 1 : 0) - expected));
             return newUserRating;
         }
 
@@ -99,12 +100,23 @@ namespace SudokuGameBackend.BLL.Services
             await unitOfWork.SaveAsync();
         }
 
-        public async Task RemoveDuelRatingForInactivity(string userId, GameMode gameMode)
+        public async Task<int> RemoveDuelRatingForInactivity(string userId, GameMode gameMode)
         {
             var currentRating = await unitOfWork.DuelRatingRepository.GetAsync(userId, gameMode);
             currentRating.Rating -= maxRatingDeltaForGame;
             unitOfWork.DuelRatingRepository.Update(currentRating);
             await unitOfWork.SaveAsync();
+            return currentRating.Rating;
+        }
+
+        public async Task<int> GetUserRating(string userId, GameMode gameMode)
+        {
+            var userRating = await unitOfWork.DuelRatingRepository.GetAsync(userId, gameMode);
+            if (userRating == null)
+            {
+                throw new ItemNotFoundException($"Rating not found. userId: {userId}, gameMode: {gameMode}");
+            }
+            return userRating.Rating;
         }
     }
 }
