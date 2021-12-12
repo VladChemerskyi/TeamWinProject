@@ -39,9 +39,9 @@ namespace SudokuGameBackend.BLL.Hubs
             {
                 var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier, opponentId);
                 await Clients.Caller.SendAsync("GameFound", sessionId);
-                logger.LogTrace($"Duel, GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                logger.LogTrace($"Duel.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                 await Clients.User(opponentId).SendAsync("GameFound", sessionId);
-                logger.LogTrace($"Duel, GameFound sent. userId: {opponentId}, sessionId: {sessionId}");
+                logger.LogTrace($"Duel.GameFound sent. userId: {opponentId}, sessionId: {sessionId}");
             }
             else
             {
@@ -60,7 +60,7 @@ namespace SudokuGameBackend.BLL.Hubs
             logger.LogDebug($"CreateSinglePlayerGame. userId: {Context.UserIdentifier}, gameMode: {gameMode}");
             var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier);
             await Clients.Caller.SendAsync("GameFound", sessionId);
-            logger.LogTrace($"Single, GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+            logger.LogTrace($"Single.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
         }
     }
 }

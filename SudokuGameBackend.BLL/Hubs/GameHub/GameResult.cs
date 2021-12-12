@@ -9,5 +9,6 @@ namespace SudokuGameBackend.BLL.Hubs
         public bool IsVictory { get; set; }
         public int Time { get; set; }
         public int NewDuelRating { get; set; }
+        public bool IsNewBestTime { get; set; }
     }
 }

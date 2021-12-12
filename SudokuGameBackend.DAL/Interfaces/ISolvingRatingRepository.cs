@@ -16,7 +16,7 @@ namespace SudokuGameBackend.DAL.Interfaces
         IEnumerable<SolvingRating> Find(Expression<Func<SolvingRating, bool>> predicate);
         Task<ICollection<SolvingRating>> FindAsync(Expression<Func<SolvingRating, bool>> predicate);
         SolvingRating Get(string userId, GameMode gameMode);
-        IEnumerable<SolvingRating> GetAll();
+        ICollection<SolvingRating> GetAll();
         Task<ICollection<SolvingRating>> GetAllAsync();
         Task<SolvingRating> GetAsync(string userId, GameMode gameMode);
         void Update(SolvingRating solvingRating);

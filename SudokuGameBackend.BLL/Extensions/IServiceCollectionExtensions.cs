@@ -23,6 +23,7 @@ namespace SudokuGameBackend.BLL.Extensions
             var mappingConfig = new MapperConfiguration(mc =>
             {
                 mc.AddProfile(new UserProfile());
+                mc.AddProfile(new RatingProfile());
             });
             var mapper = mappingConfig.CreateMapper();
             services.AddSingleton(mapper);

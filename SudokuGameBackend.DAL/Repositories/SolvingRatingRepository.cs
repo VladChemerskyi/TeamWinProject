@@ -68,14 +68,14 @@ namespace SudokuGameBackend.DAL.Repositories
             return await dbContext.SolvingLeaderboard.FindAsync(userId, gameMode);
         }
 
-        public IEnumerable<SolvingRating> GetAll()
+        public ICollection<SolvingRating> GetAll()
         {
-            return dbContext.SolvingLeaderboard;
+            return dbContext.SolvingLeaderboard.Include(r => r.User).ToList();
         }
 
         public async Task<ICollection<SolvingRating>> GetAllAsync()
         {
-            return await dbContext.SolvingLeaderboard.ToListAsync();
+            return await dbContext.SolvingLeaderboard.Include(r => r.User).ToListAsync();
         }
 
         public void Update(SolvingRating solvingRating)

@@ -70,12 +70,12 @@ namespace SudokuGameBackend.DAL.Repositories
 
         public ICollection<DuelRating> GetAll()
         {
-            return dbContext.DuelLeaderboard.ToList();
+            return dbContext.DuelLeaderboard.Include(r => r.User).ToList();
         }
 
         public async Task<ICollection<DuelRating>> GetAllAsync()
         {
-            return await dbContext.DuelLeaderboard.ToListAsync();
+            return await dbContext.DuelLeaderboard.Include(r => r.User).ToListAsync();
         }
 
         public void Update(DuelRating duelRating)

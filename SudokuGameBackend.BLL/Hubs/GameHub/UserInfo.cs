@@ -8,5 +8,6 @@ namespace SudokuGameBackend.BLL.Hubs
     {
         public string Name { get; set; }
         public int Rating { get; set; }
+        public int Time { get; set; }
     }
 }

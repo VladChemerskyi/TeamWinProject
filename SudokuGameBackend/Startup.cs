@@ -32,10 +32,13 @@ namespace SudokuGameBackend
         {
             services.AddSingleton<IGameSessionsService, GameSessionsService>();
             services.AddSingleton<IMatchmakingService, MatchmakingService>();
+            services.AddSingleton<ICacheService, CacheService>();
 
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IRatingService, RatingService>();
+            services.AddScoped<IPuzzleService, PuzzleService>();
 
+            services.AddMemoryCache();
             services.AddControllers();
             services.AddSignalR();
 
