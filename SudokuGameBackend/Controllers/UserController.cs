@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using SudokuGameBackend.BLL.DTO;
 using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.InputModels;
@@ -32,25 +33,50 @@ namespace SudokuGameBackend.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> CreateUser(CreateUserInput input)
+        public async Task<IActionResult> CreateUser(CreateUserInput input,
+            [FromServices] IOptions<ApiBehaviorOptions> apiBehaviorOptions)
         {
             logger.LogDebug($"CreateUser. {input}");
             UserRecord userRecord = null;
             try
             {
-                userRecord = await FirebaseAuth.DefaultInstance?.CreateUserAsync(new UserRecordArgs 
+                if (await userService.IsUserNameAvailable(input.Name))
                 {
-                    Email = input.Email,
-                    Password = input.Password
-                });
-                await userService.AddUser(new AddUserDto
+                    userRecord = await FirebaseAuth.DefaultInstance?.CreateUserAsync(new UserRecordArgs
+                    {
+                        Email = input.Email,
+                        Password = input.Password
+                    });
+                    await userService.AddUser(new AddUserDto
+                    {
+                        Id = userRecord.Uid,
+                        Name = input.Name,
+                        CountryCode = input.CountryCode
+                    });
+                    // TODO: Add catch for this.
+                    await ratingService.SetInitialDuelRating(userRecord.Uid);
+                    return CreatedAtAction("GetUser", new { id = userRecord.Uid }, input);
+                }
+                else
                 {
-                    Id = userRecord.Uid,
-                    Name = input.Name,
-                    CountryCode = input.CountryCode
-                });
-                await ratingService.SetInitialDuelRating(userRecord.Uid);
-                return CreatedAtAction("GetUser", new { id = userRecord.Uid }, input);
+                    logger.LogDebug($"CreateUser. Name '{input.Name}' is already in use.");
+                    ModelState.AddModelError("Name", $"Name '{input.Name}' is already in use.");
+                    return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+                }
+            }
+            catch (FirebaseAuthException ex)
+            {
+                if (ex.AuthErrorCode == AuthErrorCode.EmailAlreadyExists)
+                {
+                    logger.LogDebug($"CreateUser. Email '{input.Email}' is already in use.");
+                    ModelState.AddModelError("Email", ex.Message);
+                    return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+                }
+                else
+                {
+                    logger.LogWarning($"CreateUser exception. {input}, {ex}");
+                }
+                return BadRequest();
             }
             catch (UserAddingException ex)
             {

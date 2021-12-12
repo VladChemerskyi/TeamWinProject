@@ -50,5 +50,12 @@ namespace SudokuGameBackend.BLL.Services
             }
             return mapper.Map<UserDto>(user);
         }
+
+        public async Task<bool> IsUserNameAvailable(string userName)
+        {
+            return (await unitOfWork.UserRepository
+                .FindAsync(user => user.Name.ToLower() == userName.ToLower()))
+                .Count == 0;
+        }
     }
 }
