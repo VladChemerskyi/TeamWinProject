@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using SudokuGameBackend.BLL.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.Extensions.Logging;
+using SudokuGameBackend.BLL.Exceptions;
 
 namespace SudokuGameBackend.BLL.Hubs
 {
@@ -34,30 +35,42 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task GameInit(string sessionId)
         {
-            logger.LogDebug($"GameInit. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-            if (gameSessionsService.TryGetSession(sessionId, out var session))
+            try
             {
-                await Clients.Caller.SendAsync("PlayersInfo", await GetPlayersInfo(session));
-                    logger.LogTrace($"PlayersInfo sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                session.SetUserConnectionId(Context.UserIdentifier, Context.ConnectionId);
-                session.SetUserReady(Context.UserIdentifier);
-                if (session.AllUsersReady)
+                logger.LogDebug($"GameInit. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                if (string.IsNullOrEmpty(sessionId))
                 {
-                    logger.LogDebug($"Session.AllUsersReady. sessionId: {sessionId}");
-                    var userIds = session.UserIds;
-                    var tasks = new Task[userIds.Count];
-                    for (int i = 0; i < userIds.Count; i++)
+                    throw new GameHubException($"Invalid sessionId value: {sessionId}");
+                }
+                if (gameSessionsService.TryGetSession(sessionId, out var session))
+                {
+                    await Clients.Caller.SendAsync("PlayersInfo", await GetPlayersInfo(session));
+                    logger.LogTrace($"PlayersInfo sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                    session.SetUserConnectionId(Context.UserIdentifier, Context.ConnectionId);
+                    session.SetUserReady(Context.UserIdentifier);
+                    if (session.AllUsersReady)
                     {
-                        tasks[i] = Clients.User(userIds[i]).SendAsync("GameStarted", session.GetPuzzlesDto());
-                        logger.LogTrace($"GameStarted sent. userId: {userIds[i]}, sessionId: {sessionId}");
+                        logger.LogDebug($"Session.AllUsersReady. sessionId: {sessionId}");
+                        var userIds = session.UserIds;
+                        var tasks = new Task[userIds.Count];
+                        for (int i = 0; i < userIds.Count; i++)
+                        {
+                            tasks[i] = Clients.User(userIds[i]).SendAsync("GameStarted", session.GetPuzzlesDto());
+                            logger.LogTrace($"GameStarted sent. userId: {userIds[i]}, sessionId: {sessionId}");
+                        }
+                        await Task.WhenAll(tasks);
+                        session.SetStartTime(DateTime.Now);
                     }
-                    await Task.WhenAll(tasks);
-                    session.SetStartTime(DateTime.Now);
+                }
+                else
+                {
+                    logger.LogWarning($"GameInit. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                logger.LogWarning($"GameInit. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                logger.LogWarning($"GameInit exception: {ex}");
+                await Clients.Caller.SendAsync("Error");
             }
         }
 
@@ -90,72 +103,88 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task UpdateProgress(string sessionId, List<RegularSudokuDto> sudokuDtos)
         {
-            logger.LogDebug($"UpdateProgress. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-            if (gameSessionsService.TryGetSession(sessionId, out var session))
+            try
             {
-                if (session.IsSolved(sudokuDtos))
+                logger.LogDebug($"UpdateProgress. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                if (string.IsNullOrEmpty(sessionId))
                 {
-                    session.SetFinishTime(Context.UserIdentifier, DateTime.Now);
-                    logger.LogDebug($"User solved puzzle. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                    session.Semaphore.WaitOne();
-                    if (!session.HasWinner)
+                    throw new GameHubException($"Invalid sessionId value: {sessionId}");
+                }
+                else if (sudokuDtos == null || sudokuDtos.Count == 0 || !sudokuDtos.All(puzzle => puzzle.IsValid))
+                {
+                    throw new GameHubException($"Invalid puzzles list.");
+                }
+                if (gameSessionsService.TryGetSession(sessionId, out var session))
+                {
+                    if (session.IsSolved(sudokuDtos))
                     {
-                        logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                        if (session.UserIds.Count == 2)
+                        session.SetFinishTime(Context.UserIdentifier, DateTime.Now);
+                        logger.LogDebug($"User solved puzzle. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                        session.Semaphore.WaitOne();
+                        if (!session.HasWinner)
                         {
-                            var winnerId = Context.UserIdentifier;
-                            var loserId = session.UserIds.Where(id => id != winnerId).First();
-                            var ratings = await ratingService.CalculateDuelRatings(winnerId, loserId, session.GameMode);
-                            foreach (var pair in ratings)
+                            logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                            if (session.UserIds.Count == 2)
                             {
-                                await ratingService.UpdateDuelRating(pair.Key, session.GameMode, pair.Value);
+                                var winnerId = Context.UserIdentifier;
+                                var loserId = session.UserIds.Where(id => id != winnerId).First();
+                                var ratings = await ratingService.CalculateDuelRatings(winnerId, loserId, session.GameMode);
+                                foreach (var pair in ratings)
+                                {
+                                    await ratingService.UpdateDuelRating(pair.Key, session.GameMode, pair.Value);
+                                }
+                                session.GameResult = new GameSessionResult(winnerId, ratings);
                             }
-                            session.GameResult = new GameSessionResult(winnerId, ratings);
-                        }
-                        else if (session.UserIds.Count == 1)
-                        {
-                            var newRatings = new Dictionary<string, int>
+                            else if (session.UserIds.Count == 1)
                             {
-                                { Context.UserIdentifier, -1 }
-                            };
-                            session.GameResult = new GameSessionResult(Context.UserIdentifier, newRatings);
+                                var newRatings = new Dictionary<string, int>
+                                {
+                                    { Context.UserIdentifier, -1 }
+                                };
+                                session.GameResult = new GameSessionResult(Context.UserIdentifier, newRatings);
+                            }
                         }
-                    }
-                    var time = session.GetUserTime(Context.UserIdentifier);
-                    bool isNewBestTime = await ratingService.UpdateSolvingRating(Context.UserIdentifier, time, session.GameMode);
-                    var gameResult = new GameResult
-                    {
-                        IsVictory = session.GameResult.WinnerId == Context.UserIdentifier,
-                        NewDuelRating = session.GameResult.NewRatings[Context.UserIdentifier],
-                        Time = time,
-                        IsNewBestTime = isNewBestTime
-                    };
-                    session.Semaphore.Release();
-                    logger.LogDebug($"User result. userId: {Context.UserIdentifier}, sessionId: {sessionId}," + 
-                        $" isVictory: {gameResult.IsVictory}, newDuelRating: {gameResult.NewDuelRating}, time: {gameResult.Time}");
-                    await Clients.Caller.SendAsync("GameResult", gameResult);
-                    logger.LogTrace($"GameResult sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                }
-                if (session.UserIds.Count > 1)
-                {
-                    var completionPercent = session.GetCompleteonPercent(sudokuDtos);
-                    foreach (var userId in session.UserIds)
-                    {
-                        if (userId != Context.UserIdentifier)
+                        var time = session.GetUserTime(Context.UserIdentifier);
+                        bool isNewBestTime = await ratingService.UpdateSolvingRating(Context.UserIdentifier, time, session.GameMode);
+                        var gameResult = new GameResult
                         {
-                            await Clients.User(userId).SendAsync("OpponentCompletionPercent", completionPercent);
-                            logger.LogTrace($"OpponentCompletionPercent sent. userId: {userId}, sessionId: {sessionId}");
+                            IsVictory = session.GameResult.WinnerId == Context.UserIdentifier,
+                            NewDuelRating = session.GameResult.NewRatings[Context.UserIdentifier],
+                            Time = time,
+                            IsNewBestTime = isNewBestTime
+                        };
+                        session.Semaphore.Release();
+                        logger.LogDebug($"User result. userId: {Context.UserIdentifier}, sessionId: {sessionId}," + 
+                            $" isVictory: {gameResult.IsVictory}, newDuelRating: {gameResult.NewDuelRating}, time: {gameResult.Time}");
+                        await Clients.Caller.SendAsync("GameResult", gameResult);
+                        logger.LogTrace($"GameResult sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                    }
+                    if (session.UserIds.Count > 1)
+                    {
+                        var completionPercent = session.GetCompleteonPercent(sudokuDtos);
+                        foreach (var userId in session.UserIds)
+                        {
+                            if (userId != Context.UserIdentifier)
+                            {
+                                await Clients.User(userId).SendAsync("OpponentCompletionPercent", completionPercent);
+                                logger.LogTrace($"OpponentCompletionPercent sent. userId: {userId}, sessionId: {sessionId}");
+                            }
                         }
                     }
+                    if (session.AllUsersFinished)
+                    {
+                        gameSessionsService.DeleteSession(session.Id);
+                    }
                 }
-                if (session.AllUsersFinished)
+                else
                 {
-                    gameSessionsService.DeleteSession(session.Id);
+                    logger.LogWarning($"UpdateProgress. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                 }
             }
-            else
+            catch (Exception ex)
             {
-                logger.LogWarning($"UpdateProgress. Can't get session. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                logger.LogWarning($"UpdateProgress exception: {ex}");
+                await Clients.Caller.SendAsync("Error");
             }
         }
     }

@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using SudokuGameBackend.BLL.Exceptions;
+using SudokuGameBackend.BLL.Extensions;
 using SudokuGameBackend.BLL.Interfaces;
 using SudokuGameBackend.DAL.Interfaces;
 using System;
@@ -32,35 +34,66 @@ namespace SudokuGameBackend.BLL.Hubs
 
         public async Task FindDuelGame(GameMode gameMode)
         {
-            logger.LogDebug($"FindDuelGame. userId: {Context.UserIdentifier}, gameMode: {gameMode}");
-            // TODO: Check gameMode.
-            var userRating = (await unitOfWork.DuelRatingRepository.GetAsync(Context.UserIdentifier, gameMode)).Rating;
-            if (matchmakingService.TryFindOpponent(gameMode, userRating, Context.UserIdentifier, out string opponentId))
+            try
             {
-                var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier, opponentId);
-                await Clients.Caller.SendAsync("GameFound", sessionId);
-                logger.LogTrace($"Duel.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                await Clients.User(opponentId).SendAsync("GameFound", sessionId);
-                logger.LogTrace($"Duel.GameFound sent. userId: {opponentId}, sessionId: {sessionId}");
+                logger.LogDebug($"FindDuelGame. userId: {Context.UserIdentifier}, gameMode: {gameMode}");
+                if (!gameMode.IsValid())
+                {
+                    throw new MatchmakerHubException($"gameMode value is not valid. value: {gameMode}");
+                }
+                var userRating = (await unitOfWork.DuelRatingRepository.GetAsync(Context.UserIdentifier, gameMode)).Rating;
+                if (matchmakingService.TryFindOpponent(gameMode, userRating, Context.UserIdentifier, out string opponentId))
+                {
+                    var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier, opponentId);
+                    await Clients.Caller.SendAsync("GameFound", sessionId);
+                    logger.LogTrace($"Duel.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+                    await Clients.User(opponentId).SendAsync("GameFound", sessionId);
+                    logger.LogTrace($"Duel.GameFound sent. userId: {opponentId}, sessionId: {sessionId}");
+                }
+                else
+                {
+                    matchmakingService.AddToQueue(Context.UserIdentifier, userRating, gameMode);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                matchmakingService.AddToQueue(Context.UserIdentifier, userRating, gameMode);
+                logger.LogWarning($"FindDuelGame exception: {ex}");
+                await Clients.Caller.SendAsync("Error");
             }
         }
 
         public async Task RemoveFromQueue()
         {
-            logger.LogDebug($"RemoveFromQueue. userId: {Context.UserIdentifier}");
-            await Task.Run(() => matchmakingService.RemoveFromQueue(Context.UserIdentifier));
+            try
+            {
+                logger.LogDebug($"RemoveFromQueue. userId: {Context.UserIdentifier}");
+                matchmakingService.RemoveFromQueue(Context.UserIdentifier);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"RemoveFromQueue exception: {ex}");
+                await Clients.Caller.SendAsync("Error");
+            }
         }
 
         public async Task CreateSinglePlayerGame(GameMode gameMode)
         {
-            logger.LogDebug($"CreateSinglePlayerGame. userId: {Context.UserIdentifier}, gameMode: {gameMode}");
-            var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier);
-            await Clients.Caller.SendAsync("GameFound", sessionId);
-            logger.LogTrace($"Single.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+            try
+            {
+                if (!gameMode.IsValid())
+                {
+                    throw new MatchmakerHubException($"gameMode value is not valid. value: {gameMode}");
+                }
+                logger.LogDebug($"CreateSinglePlayerGame. userId: {Context.UserIdentifier}, gameMode: {gameMode}");
+                var sessionId = gameSessionsService.CreateSession(gameMode, Context.UserIdentifier);
+                await Clients.Caller.SendAsync("GameFound", sessionId);
+                logger.LogTrace($"Single.GameFound sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"CreateSinglePlayerGame exception: {ex}");
+                await Clients.Caller.SendAsync("Error");
+            }
         }
     }
 }
