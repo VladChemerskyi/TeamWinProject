@@ -13,7 +13,7 @@ namespace SudokuGameBackend.BLL.MapperProfiles
         public UserProfile()
         {
             CreateMap<User, UserDto>();
-            CreateMap<AddUserInput, User>();
+            CreateMap<AddUserDto, User>();
         }
     }
 }

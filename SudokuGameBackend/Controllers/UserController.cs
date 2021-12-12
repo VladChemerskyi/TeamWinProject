@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using FirebaseAdmin.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -15,7 +16,6 @@ namespace SudokuGameBackend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize]
     public class UserController : ControllerBase
     {
         private readonly IUserService userService;
@@ -32,32 +32,43 @@ namespace SudokuGameBackend.Controllers
         [HttpPost]
         [ProducesResponseType(StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult> AddUser(AddUserInput input)
+        public async Task<ActionResult> CreateUser(CreateUserInput input)
         {
-            logger.LogDebug($"AddUser. {input}");
-            ActionResult result;
-            if (ModelState.IsValid)
+            logger.LogDebug($"CreateUser. {input}");
+            UserRecord userRecord = null;
+            try
             {
-                try
+                userRecord = await FirebaseAuth.DefaultInstance?.CreateUserAsync(new UserRecordArgs 
                 {
-                    await userService.AddUser(input);
-                    await ratingService.SetInitialDuelRating(input.Id);
-                    result = CreatedAtAction("GetUser", new { id = input.Id }, input);
-                }
-                catch (Exception ex)
+                    Email = input.Email,
+                    Password = input.Password
+                });
+                await userService.AddUser(new AddUserDto
                 {
-                    logger.LogWarning($"AddUser exception. {input}, {ex}");
-                    result = BadRequest();
-                }
+                    Id = userRecord.Uid,
+                    Name = input.Name,
+                    CountryCode = input.CountryCode
+                });
+                await ratingService.SetInitialDuelRating(userRecord.Uid);
+                return CreatedAtAction("GetUser", new { id = userRecord.Uid }, input);
             }
-            else
+            catch (UserAddingException ex)
             {
-                logger.LogWarning($"AddUser. Validation failed. {input}");
-                result = BadRequest(ModelState);
+                logger.LogWarning($"CreateUser exception. {input}, {ex}");
+                if (userRecord != null)
+                {
+                    await FirebaseAuth.DefaultInstance?.DeleteUserAsync(userRecord.Uid);
+                }
+                return BadRequest();
             }
-            return result;
+            catch (Exception ex)
+            {
+                logger.LogWarning($"CreateUser exception. {input}, {ex}");
+                return BadRequest();
+            }
         }
 
+        [Authorize]
         [HttpGet("{id}", Name = "GetUser")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

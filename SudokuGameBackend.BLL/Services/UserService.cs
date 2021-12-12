@@ -26,12 +26,19 @@ namespace SudokuGameBackend.BLL.Services
             this.logger = logger;
         }
 
-        public async Task AddUser(AddUserInput input)
+        public async Task AddUser(AddUserDto input)
         {
-            User user = mapper.Map<User>(input);
-            await unitOfWork.UserRepository.CreateAsync(user);
-            await unitOfWork.SaveAsync();
-            logger.LogDebug($"AddUser success. {input}");
+            try
+            {
+                User user = mapper.Map<User>(input);
+                await unitOfWork.UserRepository.CreateAsync(user);
+                await unitOfWork.SaveAsync();
+                logger.LogDebug($"AddUser success. {input}");
+            }
+            catch (Exception ex)
+            {
+                throw new UserAddingException($"User adding exception. Input: {input}", ex);
+            }
         }
 
         public async Task<UserDto> GetUser(string id)

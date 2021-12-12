@@ -9,7 +9,7 @@ namespace SudokuGameBackend.BLL.Interfaces
 {
     public interface IUserService
     {
-        Task AddUser(AddUserInput input);
+        Task AddUser(AddUserDto input);
         Task<UserDto> GetUser(string id);
     }
 }
