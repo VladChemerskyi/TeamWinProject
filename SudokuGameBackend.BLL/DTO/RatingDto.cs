@@ -6,6 +6,7 @@ namespace SudokuGameBackend.BLL.DTO
 {
     public class RatingDto
     {
+        public string Id { get; set; }
         public string Name { get; set; }
         public string CountryCode { get; set; }
         public int Value { get; set; }
