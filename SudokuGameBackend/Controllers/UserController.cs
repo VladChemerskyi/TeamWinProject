@@ -94,6 +94,52 @@ namespace SudokuGameBackend.Controllers
             }
         }
 
+        [HttpPost("add")]
+        [ProducesResponseType(StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> AddUser(AddUserInput addUserInput,
+            [FromServices] IOptions<ApiBehaviorOptions> apiBehaviorOptions)
+        {
+            logger.LogDebug($"AddUser. {addUserInput}");
+            try
+            {
+                var userRecord = await FirebaseAuth.DefaultInstance?.GetUserByEmailAsync(addUserInput.Email);
+                if (!(await userService.DoesUserExist(userRecord.Uid)))
+                {
+                    // TODO: Improve user name generation. Avoid collisions.
+                    var userName = userService.GetNameFromEmail(userRecord.Email);
+                    if (await userService.IsUserNameAvailable(userName))
+                    {
+                        await userService.AddUser(new AddUserDto
+                        {
+                            Id = userRecord.Uid,
+                            Name = userName
+                        });
+                        // TODO: Add catch for this.
+                        await ratingService.SetInitialDuelRating(userRecord.Uid);
+                        return CreatedAtAction("GetUser", new { id = userRecord.Uid }, addUserInput);
+                    }
+                    else
+                    {
+                        logger.LogDebug($"AddUser. Name '{userName}' is already in use.");
+                        ModelState.AddModelError("Name", $"Name '{userName}' is already in use.");
+                        return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+                    }
+                }
+                else
+                {
+                    logger.LogDebug($"AddUser. User with id '{userRecord.Uid}' already exists.");
+                    ModelState.AddModelError("Id", $"User with id '{userRecord.Uid}' already exists.");
+                    return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"AddUser exception. {addUserInput}, {ex}");
+                return BadRequest();
+            }
+        }
+
         [Authorize]
         [HttpGet("{id}", Name = "GetUser")]
         [ProducesResponseType(StatusCodes.Status200OK)]

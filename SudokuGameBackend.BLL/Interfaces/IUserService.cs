@@ -12,5 +12,7 @@ namespace SudokuGameBackend.BLL.Interfaces
         Task AddUser(AddUserDto input);
         Task<UserDto> GetUser(string id);
         Task<bool> IsUserNameAvailable(string userName);
+        Task<bool> DoesUserExist(string userId);
+        string GetNameFromEmail(string email);
     }
 }

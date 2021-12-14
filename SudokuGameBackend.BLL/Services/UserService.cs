@@ -9,6 +9,7 @@ using SudokuGameBackend.DAL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace SudokuGameBackend.BLL.Services
@@ -56,6 +57,30 @@ namespace SudokuGameBackend.BLL.Services
             return (await unitOfWork.UserRepository
                 .FindAsync(user => user.Name.ToLower() == userName.ToLower()))
                 .Count == 0;
+        }
+
+        public async Task<bool> DoesUserExist(string userId)
+        {
+            return (await unitOfWork.UserRepository.GetAsync(userId)) != null;
+        }
+
+        public string GetNameFromEmail(string email)
+        {
+            var userName = email.Split('@')[0];
+            userName = Regex.Replace(userName, "[^A-Za-z0-9_]+", string.Empty);
+            while (userName.Contains("__"))
+            {
+                userName = userName.Replace("__", "_");
+            }
+            if (userName.Length > 16)
+            {
+                userName = userName.Substring(0, 16);
+            }
+            else if (userName.Length < 3)
+            {
+                userName = userName.PadRight(3, '0');
+            }
+            return userName;
         }
     }
 }
