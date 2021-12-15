@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SudokuGameBackend.BLL.Helpers;
 using SudokuGameBackend.BLL.Hubs;
 using SudokuGameBackend.BLL.Interfaces;
 using System;
@@ -39,46 +40,77 @@ namespace SudokuGameBackend.BLL.Services
 
         private async Task OnSessionAborted(GameSession session)
         {
-            logger.LogDebug($"Session aborted. sessionId: {session.Id}");
-            using var scope = serviceScopeFactory.CreateScope();
-            var gameHubContext = scope.ServiceProvider.GetService<IHubContext<GameHub>>();
-            foreach (var userId in session.UserIds)
+            try
             {
-                var userConnectionId = session.GetUserConnectionId(userId);
-                if (userConnectionId != null)
+                logger.LogDebug($"Session aborted. sessionId: {session.Id}");
+                using var scope = serviceScopeFactory.CreateScope();
+                var gameHubContext = scope.ServiceProvider.GetService<IHubContext<GameHub>>();
+                foreach (var userId in session.UserIds)
                 {
-                    await gameHubContext.Clients.Client(userConnectionId).SendAsync("GameAborted");
-                    logger.LogTrace($"GameAborted called. userId: {userId}, sessionId: {session.Id}");
+                    var userConnectionId = session.GetUserConnectionId(userId);
+                    if (userConnectionId != null)
+                    {
+                        await gameHubContext.Clients.Client(userConnectionId).SendAsync("GameAborted");
+                        logger.LogTrace($"GameAborted called. userId: {userId}, sessionId: {session.Id}");
+                    }
                 }
+                this.DeleteSession(session.Id);
             }
-            this.DeleteSession(session.Id);
+            catch (Exception ex)
+            {
+                logger.LogWarning($"OnSessionAborted exception: {ex}");
+            }
         }
 
         private async Task OnSessionEnded(GameSession session)
         {
-            logger.LogDebug($"Session ended. sessionId: {session.Id}");
-            if (session.UserIds.Count <= 2)
+            try
             {
+                logger.LogDebug($"Session ended. sessionId: {session.Id}");
                 using var scope = serviceScopeFactory.CreateScope();
                 var ratingService = scope.ServiceProvider.GetService<IRatingService>();
+                var statsService = scope.ServiceProvider.GetService<IStatsService>();
                 var gameHubContext = scope.ServiceProvider.GetService<IHubContext<GameHub>>();
+                session.Semaphore.WaitOne();
+                if (!session.HasResult)
+                {
+                    await session.CreateTimeExpiredResult(ratingService);
+                }
                 foreach (var userId in session.UserIds)
                 {
-                    if (session.GetUserTime(userId) == 0)
+                    if (!session.UserResultWasCreated(userId))
                     {
-                        int newRating = await ratingService.RemoveDuelRatingForInactivity(userId, session.GameMode);
-                        await gameHubContext.Clients.Client(session.GetUserConnectionId(userId)).SendAsync("GameTimeExpired", newRating);
-                        logger.LogTrace($"GameTimeExpired celled. userId: {userId}, sessionId: {session.Id}, newRating: {newRating}");
+                        var gameResult = await session.GetGameResult(userId, ratingService);
+                        logger.LogDebug($"User result. userId: {userId}, sessionId: {session.Id}, GameResult: {gameResult}");
+                        await gameHubContext.Clients.Client(session.GetUserConnectionId(userId)).SendAsync("GameTimeExpired", gameResult);
+                        logger.LogTrace($"GameTimeExpired sent. userId: {userId}, sessionId: {session.Id}, gameResult: {gameResult}");
+                        
+                        if (gameResult.GameResultType.IsVictory() && session.UserIds.Count > 1)
+                        {
+                            await statsService.IncrementDuelWinsCount(userId, session.GameMode);
+                        }
                     }
                 }
+                session.Semaphore.Release();
+                this.DeleteSession(session.Id);
             }
-            this.DeleteSession(session.Id);
+            catch (Exception ex)
+            {
+                logger.LogWarning($"OnSessionEnded exception: {ex}");
+            }
         }
 
         public void DeleteSession(string sessionId)
         {
-            sessions.TryRemove(sessionId, out _);
-            logger.LogDebug($"Session deleted. sessionId: {sessionId}");
+            if(sessions.TryRemove(sessionId, out var session))
+            {
+                session.Dispose();
+                logger.LogDebug($"Session deleted. sessionId: {sessionId}");
+            }
+            else
+            {
+                logger.LogWarning($"Unable to delete session. sessionId: {sessionId}");
+            }
         }
 
         public bool TryGetSession(string sessionId, out GameSession gameSession)

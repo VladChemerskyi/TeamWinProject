@@ -1,4 +1,5 @@
-﻿using System;
+﻿using SudokuGameBackend.BLL.Helpers;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -6,13 +7,18 @@ namespace SudokuGameBackend.BLL.Services
 {
     public class GameSessionResult
     {
-        public string WinnerId { get; }
+        public Dictionary<string, GameResultType> UsersGameResults { get; }
         public Dictionary<string, int> NewRatings { get; }
+        public Dictionary<string, int> OldRatings { get; }
 
-        public GameSessionResult(string winnerId, Dictionary<string, int> newRatings)
+        public GameSessionResult(
+            Dictionary<string, GameResultType> userGameResults, 
+            Dictionary<string, int> newRatings, 
+            Dictionary<string, int> oldRatings)
         {
-            WinnerId = winnerId;
+            UsersGameResults = userGameResults;
             NewRatings = newRatings;
+            OldRatings = oldRatings;
         }
     }
 }

@@ -13,6 +13,8 @@ namespace SudokuGameBackend.DAL.EF
         private IUserRepository userRepository;
         private IDuelRatingRepository duelRatingRepository;
         private ISolvingRatingRepository solvingRatingRepository;
+        private ISingleStatsRepository singleStatsRepository;
+        private IDuelStatsRepository duelStatsRepository;
 
         public UnitOfWork(ApplicationDbContext dbContext)
         {
@@ -52,6 +54,30 @@ namespace SudokuGameBackend.DAL.EF
                     solvingRatingRepository = new SolvingRatingRepository(dbContext);
                 }
                 return solvingRatingRepository;
+            }
+        }
+
+        public ISingleStatsRepository SingleStatsRepository
+        {
+            get
+            {
+                if (singleStatsRepository == null)
+                {
+                    singleStatsRepository = new SingleStatsRepository(dbContext);
+                }
+                return singleStatsRepository;
+            }
+        }
+
+        public IDuelStatsRepository DuelStatsRepository
+        {
+            get
+            {
+                if (duelStatsRepository == null)
+                {
+                    duelStatsRepository = new DuelStatsRepository(dbContext);
+                }
+                return duelStatsRepository;
             }
         }
 

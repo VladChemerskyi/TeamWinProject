@@ -7,9 +7,9 @@ namespace SudokuGameBackend.BLL.Helpers
 {
     class DifficultyMatcher
     {
-        public RatingRange EasyRatingRange { get; } = new RatingRange(3500, 4500);
-        public RatingRange MediumRatingRange { get; } = new RatingRange(5600, 6600);
-        public RatingRange HardRatingRange { get; } = new RatingRange(10650, 11650);
+        public RatingRange EasyRatingRange { get; } = new RatingRange(3900, 4400);
+        public RatingRange MediumRatingRange { get; } = new RatingRange(5400, 5900);
+        public RatingRange HardRatingRange { get; } = new RatingRange(6900, 7400);
 
         public RatingRange[] RatingRangesFromGameMode(GameMode gameMode)
         {

@@ -7,6 +7,7 @@ using SudokuGameBackend.BLL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace SudokuGameBackend.Controllers
@@ -27,11 +28,12 @@ namespace SudokuGameBackend.Controllers
         [HttpGet("duel")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<List<RatingDto>>> GetDuelLeaderboard([FromQuery] GetLeaderboardInput input)
+        public async Task<ActionResult<LeaderboardDto>> GetDuelLeaderboard([FromQuery] GetLeaderboardInput input)
         {
             try
             {
-                return await ratingService.GetDuelLeaderboardAsync(input);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                return await ratingService.GetDuelLeaderboardAsync(input, userId);
             }
             catch (Exception ex)
             {
@@ -43,11 +45,12 @@ namespace SudokuGameBackend.Controllers
         [HttpGet("solving")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<ActionResult<List<RatingDto>>> GetSolvingLeaderboard([FromQuery] GetLeaderboardInput input)
+        public async Task<ActionResult<LeaderboardDto>> GetSolvingLeaderboard([FromQuery] GetLeaderboardInput input)
         {
             try
             {
-                return await ratingService.GetSolvingLeaderboardAsync(input);
+                var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                return await ratingService.GetSolvingLeaderboardAsync(input, userId);
             }
             catch (Exception ex)
             {
