@@ -6,10 +6,13 @@ using System.Text;
 
 namespace SudokuGameBackend.BLL.InputModels
 {
-    public class AddUserInput
+    public abstract class UserInputBase
     {
         [Required]
-        [EmailAddress]
-        public string Email { get; set; }
+        [RegularExpression(@"^(?!.*(_)\1{1})[A-Za-z0-9_]{3,16}$")]
+        public string Name { get; set; }
+
+        [CountryCode]
+        public string CountryCode { get; set; }
     }
 }
