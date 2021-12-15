@@ -22,12 +22,14 @@ namespace SudokuGameBackend.BLL.Services
         private readonly IUnitOfWork unitOfWork;
         private readonly IMapper mapper;
         private readonly ILogger<UserService> logger;
+        private readonly ICountriesService countriesService;
 
-        public UserService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserService> logger)
+        public UserService(IUnitOfWork unitOfWork, IMapper mapper, ILogger<UserService> logger, ICountriesService countriesService)
         {
             this.unitOfWork = unitOfWork;
             this.mapper = mapper;
             this.logger = logger;
+            this.countriesService = countriesService;
         }
 
         public async Task AddUser(AddUserDto input)
@@ -55,16 +57,9 @@ namespace SudokuGameBackend.BLL.Services
             var userDto = mapper.Map<UserDto>(user);
             if (user.CountryCode != null)
             {
-                userDto.Country = await GetCountryByCode(user.CountryCode);
+                userDto.Country = await countriesService.GetCountryByCode(user.CountryCode);
             }
             return userDto;
-        }
-
-        private async Task<CountryDto> GetCountryByCode(string code)
-        {
-            using var client = new HttpClient();
-            var reponse = await client.GetStringAsync($"https://restcountries.eu/rest/v2/alpha/{code}?fields=nativeName;alpha2Code");
-            return JsonConvert.DeserializeObject<CountryDto>(reponse);
         }
 
         public async Task UpdateUser(string id, UpdateUserInput updateUserInput)
@@ -104,11 +99,7 @@ namespace SudokuGameBackend.BLL.Services
         public string GetNameFromEmail(string email)
         {
             var userName = email.Split('@')[0];
-            userName = Regex.Replace(userName, "[^A-Za-z0-9_]+", string.Empty);
-            while (userName.Contains("__"))
-            {
-                userName = userName.Replace("__", "_");
-            }
+            userName = Regex.Replace(userName, "[^A-Za-z0-9]+", string.Empty);
             if (userName.Length > 16)
             {
                 userName = userName.Substring(0, 16);

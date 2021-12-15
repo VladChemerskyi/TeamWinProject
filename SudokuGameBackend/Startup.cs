@@ -73,6 +73,7 @@ namespace SudokuGameBackend
             services.AddScoped<IRatingService, RatingService>();
             services.AddScoped<IPuzzleService, PuzzleService>();
             services.AddScoped<IStatsService, StatsService>();
+            services.AddScoped<ICountriesService, CountriesService>();
 
             services.AddMemoryCache();
             services.AddControllers();

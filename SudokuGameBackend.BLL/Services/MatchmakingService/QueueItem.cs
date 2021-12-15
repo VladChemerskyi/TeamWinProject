@@ -6,6 +6,7 @@ namespace SudokuGameBackend.BLL.Services
 {
     class QueueItem
     {
+        private const int maxRatingDelta = 300;
         public string UserId { get; }
         public int Rating { get; }
         public GameMode GameMode { get; }
@@ -19,8 +20,7 @@ namespace SudokuGameBackend.BLL.Services
 
         public bool Match(GameMode gameMode, int rating)
         {
-            // TODO: Add additional match logic.
-            return GameMode == gameMode;
+            return GameMode == gameMode && Math.Abs(Rating - rating) <= maxRatingDelta;
         }
     }
 }

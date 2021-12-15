@@ -14,6 +14,7 @@ namespace SudokuGameBackend.BLL.Services
     {
         public static string DuelRating { get => "DuelRating"; }
         public static string SolvingRating { get => "SolvingRating"; }
+        public static string AllCountries { get => "AllCountries"; }
     }
 
     public class CacheService : ICacheService
