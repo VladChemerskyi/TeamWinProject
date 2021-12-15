@@ -9,11 +9,11 @@ namespace SudokuGameBackend.BLL.InputModels
     public class CreateUserInput : UserInputBase
     {
         [Required]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "invalid-email")]
         public string Email { get; set; }
 
         [Required]
-        [StringLength(32, MinimumLength = 6)]
+        [StringLength(32, MinimumLength = 6, ErrorMessage = "password-incorrect-format")]
         public string Password { get; set; }
 
         public override string ToString()

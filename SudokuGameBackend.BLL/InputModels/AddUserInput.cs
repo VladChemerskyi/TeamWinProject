@@ -9,7 +9,7 @@ namespace SudokuGameBackend.BLL.InputModels
     public class AddUserInput
     {
         [Required]
-        [EmailAddress]
+        [EmailAddress(ErrorMessage = "invalid-email")]
         public string Email { get; set; }
     }
 }

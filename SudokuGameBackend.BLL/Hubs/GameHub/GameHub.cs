@@ -58,7 +58,7 @@ namespace SudokuGameBackend.BLL.Hubs
                         var tasks = new Task[userIds.Count];
                         for (int i = 0; i < userIds.Count; i++)
                         {
-                            tasks[i] = Clients.User(userIds[i]).SendAsync("GameStarted", session.GetPuzzlesDto());
+                            tasks[i] = Clients.User(userIds[i]).SendAsync("GameStarted", session.GetPuzzlesDto(), session.Duration);
                             logger.LogTrace($"GameStarted sent. userId: {userIds[i]}, sessionId: {sessionId}");
                         }
                         await Task.WhenAll(tasks);

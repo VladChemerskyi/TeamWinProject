@@ -9,10 +9,10 @@ namespace SudokuGameBackend.BLL.InputModels
     public abstract class UserInputBase
     {
         [Required]
-        [RegularExpression(@"^(?!.*(_)\1{1})[A-Za-z0-9_]{3,16}$")]
+        [RegularExpression(@"^[A-Za-z0-9_-]{3,16}$", ErrorMessage = "name-incorrect-format")]
         public string Name { get; set; }
 
-        [CountryCode]
+        [CountryCode(ErrorMessage = "invalid-country-code")]
         public string CountryCode { get; set; }
     }
 }

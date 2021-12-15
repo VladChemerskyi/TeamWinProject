@@ -69,7 +69,7 @@ namespace SudokuGameBackend.Controllers
                 else
                 {
                     logger.LogDebug($"CreateUser. Name '{input.Name}' is already in use.");
-                    ModelState.AddModelError("Name", $"Name '{input.Name}' is already in use.");
+                    ModelState.AddModelError("Name", "name-in-use");
                     return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
                 }
             }
@@ -78,7 +78,7 @@ namespace SudokuGameBackend.Controllers
                 if (ex.AuthErrorCode == AuthErrorCode.EmailAlreadyExists)
                 {
                     logger.LogDebug($"CreateUser. Email '{input.Email}' is already in use.");
-                    ModelState.AddModelError("Email", ex.Message);
+                    ModelState.AddModelError("Email", "email-in-use");
                     return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
                 }
                 else
@@ -132,14 +132,14 @@ namespace SudokuGameBackend.Controllers
                     else
                     {
                         logger.LogDebug($"AddUser. Name '{userName}' is already in use.");
-                        ModelState.AddModelError("Name", $"Name '{userName}' is already in use.");
+                        ModelState.AddModelError("Name", "name-in-use");
                         return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
                     }
                 }
                 else
                 {
                     logger.LogDebug($"AddUser. User with id '{userRecord.Uid}' already exists.");
-                    ModelState.AddModelError("Id", $"User with id '{userRecord.Uid}' already exists.");
+                    ModelState.AddModelError("Id", "user-already-exists");
                     return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
                 }
             }
@@ -192,7 +192,7 @@ namespace SudokuGameBackend.Controllers
                 else if (!await userService.IsUserNameCanBeUpdated(updateUserInput.Name, userId))
                 {
                     logger.LogDebug($"UpdateUser. Name '{updateUserInput.Name}' is already in use.");
-                    ModelState.AddModelError("Name", $"Name '{updateUserInput.Name}' is already in use.");
+                    ModelState.AddModelError("Name", "name-in-use");
                     return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
                 }
 

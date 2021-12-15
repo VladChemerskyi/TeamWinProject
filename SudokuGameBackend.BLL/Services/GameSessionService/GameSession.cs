@@ -51,6 +51,7 @@ namespace SudokuGameBackend.BLL.Services
         {
             get => userStates.Values.All(state => state.FinishTime.HasValue);
         }
+        public int Duration { get; }
 
         public GameSession(GameMode gameMode, Func<GameSession, Task> onSessionAborted, Func<GameSession, Task> onSessionEnded, params string[] userIds)
         {
@@ -65,6 +66,7 @@ namespace SudokuGameBackend.BLL.Services
             }
 
             Id = Guid.NewGuid().ToString();
+            Duration = CalculateDuration();
 
             sudokuPuzzles = new ConcurrentDictionary<int, RegularSudoku>();
             var ratingRanges = new DifficultyMatcher().RatingRangesFromGameMode(gameMode);
@@ -99,8 +101,7 @@ namespace SudokuGameBackend.BLL.Services
         public void SetStartTime(DateTime startTime)
         {
             StartTime = startTime;
-            // 10 minutes for game session.
-            sessionTimer.Interval = 600000;
+            sessionTimer.Interval = Duration;
             sessionTimer.Elapsed += onSessionEnded;
             sessionTimer.Start();
         }
@@ -293,6 +294,19 @@ namespace SudokuGameBackend.BLL.Services
                 }
             }
             return correctlyFilled;
+        }
+
+        private int CalculateDuration()
+        {
+            int duration = GameMode switch
+            {
+                GameMode.OnePuzzleEazy => 1200 * 1000, // 20 min.
+                GameMode.OnePuzzleMedium => 1500 * 1000, // 25 min.
+                GameMode.OnePuzzleHard => 1800 * 1000, // 30 min.
+                GameMode.ThreePuzzles => 600 * 1000, // 10 min.
+                _ => 1800 * 1000, // 30 min.
+            };
+            return duration;
         }
 
         public void Dispose()
