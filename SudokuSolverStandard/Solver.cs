@@ -41,19 +41,19 @@ namespace Kermalis.SudokuSolver.Core
         {
             new SolverTechnique(NakedSingle, "Naked single"), // OK Single Candidate
             new SolverTechnique(HiddenSingle, "Hidden single"), // OK Single Position
+            new SolverTechnique(PointingTuple, "https://hodoku.sourceforge.net/en/tech_intersections.php#lc1"), // OK Candidate Lines
             new SolverTechnique(NakedPair, "https://hodoku.sourceforge.net/en/tech_naked.php#n2"), // OK
             new SolverTechnique(HiddenPair, "https://hodoku.sourceforge.net/en/tech_hidden.php#h2"), // OK
-            //new SolverTechnique(LockedCandidate, "https://hodoku.sourceforge.net/en/tech_intersections.php#lc1"),
-            new SolverTechnique(PointingTuple, "https://hodoku.sourceforge.net/en/tech_intersections.php#lc1"), // OK Candidate Lines
             new SolverTechnique(NakedTriple, "https://hodoku.sourceforge.net/en/tech_naked.php#n3"), // OK
             new SolverTechnique(HiddenTriple, "https://hodoku.sourceforge.net/en/tech_hidden.php#h3"), // OK
             new SolverTechnique(XWing, "https://hodoku.sourceforge.net/en/tech_fishb.php#bf2"), // OK
-            new SolverTechnique(Swordfish, "https://hodoku.sourceforge.net/en/tech_fishb.php#bf3"), // OK
-            //new SolverTechnique(YWing, "https://www.sudokuwiki.org/Y_Wing_Strategy"),
-            //new SolverTechnique(XYZWing, "https://www.sudokuwiki.org/XYZ_Wing"),
             new SolverTechnique(XYChain, "https://www.sudokuwiki.org/XY_Chains"), // OK Similar to Forcing Chains
             new SolverTechnique(NakedQuadruple, "https://hodoku.sourceforge.net/en/tech_naked.php#n4"), // OK
             new SolverTechnique(HiddenQuadruple, "https://hodoku.sourceforge.net/en/tech_hidden.php#h4"), // OK
+            new SolverTechnique(Swordfish, "https://hodoku.sourceforge.net/en/tech_fishb.php#bf3"), // OK
+            //new SolverTechnique(LockedCandidate, "https://hodoku.sourceforge.net/en/tech_intersections.php#lc1"),
+            //new SolverTechnique(YWing, "https://www.sudokuwiki.org/Y_Wing_Strategy"),
+            //new SolverTechnique(XYZWing, "https://www.sudokuwiki.org/XYZ_Wing"),
             //new SolverTechnique(Jellyfish, "https://hodoku.sourceforge.net/en/tech_fishb.php#bf4"),
             //new SolverTechnique(UniqueRectangle, "https://hodoku.sourceforge.net/en/tech_ur.php"),
             //new SolverTechnique(HiddenRectangle, "https://hodoku.sourceforge.net/en/tech_ur.php#hr"),

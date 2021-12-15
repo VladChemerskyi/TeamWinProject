@@ -11,6 +11,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -81,6 +82,23 @@ namespace SudokuGameBackend.BLL.Services
                 userName = userName.PadRight(3, '0');
             }
             return userName;
+        }
+
+        public async Task<UserStatsDto> GetUserStats(string id)
+        {
+            var duelStats = new Dictionary<int, int>((await unitOfWork.DuelRatingRepository
+                .FindAsync(rating => rating.UserId == id))
+                .Select(rating => new KeyValuePair<int, int>((int)rating.GameMode, rating.Rating)));
+
+            var solvingStats = new Dictionary<int, int>((await unitOfWork.SolvingRatingRepository
+                .FindAsync(rating => rating.UserId == id))
+                .Select(rating => new KeyValuePair<int, int>((int)rating.GameMode, rating.Time)));
+
+            return new UserStatsDto
+            {
+                DuelStats = duelStats,
+                SolvingStats = solvingStats
+            };
         }
     }
 }

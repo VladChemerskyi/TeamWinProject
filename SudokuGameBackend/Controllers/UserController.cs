@@ -156,5 +156,22 @@ namespace SudokuGameBackend.Controllers
                 return NotFound(new { error = ex.Message });
             }
         }
+
+        [Authorize]
+        [HttpGet("{id}/stats")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<UserStatsDto>> GetUserStats(string id)
+        {
+            try
+            {
+                return await userService.GetUserStats(id);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"GetUserStats. userId: {id}, exception: {ex}");
+                return BadRequest();
+            }
+        }
     }
 }
