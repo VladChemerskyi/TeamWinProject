@@ -1,5 +1,7 @@
 ﻿using SudokuGameBackend.BLL.DTO;
+using SudokuGameBackend.BLL.Exceptions;
 using SudokuGameBackend.BLL.Helpers;
+using SudokuGameBackend.BLL.Interfaces;
 using SudokuStandard;
 using System;
 using System.Collections.Concurrent;
@@ -43,7 +45,7 @@ namespace SudokuGameBackend.BLL.Services
                 }
             }
         }
-        public bool HasWinner { get => GameResult != null; }
+        public bool HasResult { get => GameResult != null; }
         public Semaphore Semaphore { get; }
         public bool AllUsersFinished
         {
@@ -90,6 +92,7 @@ namespace SudokuGameBackend.BLL.Services
             if (AllUsersReady)
             {
                 sessionTimer.Stop();
+                sessionTimer.Elapsed -= onSessionAborted;
             }
         }
 
@@ -98,7 +101,6 @@ namespace SudokuGameBackend.BLL.Services
             StartTime = startTime;
             // 10 minutes for game session.
             sessionTimer.Interval = 600000;
-            sessionTimer.Elapsed -= onSessionAborted;
             sessionTimer.Elapsed += onSessionEnded;
             sessionTimer.Start();
         }
@@ -126,8 +128,13 @@ namespace SudokuGameBackend.BLL.Services
         {
             int totalEmpty = sudokuPuzzles.Values.Sum(puzzle => puzzle.BoardArray.Count(value => value == 0));
             int currentCorrectlyFilled = puzzles.Sum(puzzle => GetCorrectlyFilledCount(puzzle));
-            int completionPercent = (int)Math.Round((double)currentCorrectlyFilled / totalEmpty * 100);
+            int completionPercent = (int)Math.Round((double)currentCorrectlyFilled / totalEmpty * 10000);
             return completionPercent;
+        }
+
+        public void SetUserCompletionPercent(string userId, int completionPercent)
+        {
+            userStates[userId].CompletionPercent = completionPercent;
         }
 
         public bool IsSolved(List<RegularSudokuDto> puzzles)
@@ -137,7 +144,7 @@ namespace SudokuGameBackend.BLL.Services
 
         public int GetUserTime(string userId)
         {
-            int userTime = 0;
+            int userTime = -1;
             var finishTime = userStates[userId].FinishTime;
             if (finishTime.HasValue && StartTime.HasValue)
             {
@@ -156,6 +163,123 @@ namespace SudokuGameBackend.BLL.Services
             return userStates[userId].ConnectionId;
         }
 
+        public async Task CreatePuzzleSolvedResult(string winnerId, IRatingService ratingService)
+        {
+            if (HasResult)
+            {
+                throw new GameSessionException("Session already has result.");
+            }
+
+            if (UserIds.Count == 2)
+            {
+                var loserId = UserIds.Where(id => id != winnerId).First();
+                var ratings = await ratingService.UpdateUsersRatings(
+                    winnerId, GameResultType.Victory, loserId, GameResultType.Defeat, GameMode);
+                GameResult = new GameSessionResult(new Dictionary<string, GameResultType> 
+                {
+                    { winnerId, GameResultType.Victory },
+                    { loserId, GameResultType.Defeat },
+                }, 
+                ratings.NewRatings, ratings.OldRatings);
+            }
+            else if (UserIds.Count == 1)
+            {
+                GameResult = new GameSessionResult(new Dictionary<string, GameResultType> 
+                {
+                    { winnerId, GameResultType.Victory }
+                }, 
+                null, null);
+            }
+        }
+
+        public async Task CreateTimeExpiredResult(IRatingService ratingService)
+        {
+            if (HasResult)
+            {
+                throw new GameSessionException("Session already has a winner.");
+            }
+
+            if (userStates.Count == 2)
+            {
+                var user1State = userStates.ElementAt(0);
+                var user2State = userStates.ElementAt(1);
+                if (user1State.Value.CompletionPercent == user2State.Value.CompletionPercent)
+                {
+                    var ratings = await ratingService.UpdateUsersRatings(
+                        user1State.Key, GameResultType.Draw, user2State.Key, GameResultType.Draw, GameMode);
+                    GameResult = new GameSessionResult(new Dictionary<string, GameResultType>
+                    {
+                        { user1State.Key, GameResultType.Draw },
+                        { user2State.Key, GameResultType.Draw },
+                    }, 
+                    ratings.NewRatings, ratings.OldRatings);
+                }
+                else
+                {
+                    var winnerId = user1State.Key;
+                    var loserId = user2State.Key;
+                    if (user2State.Value.CompletionPercent > user1State.Value.CompletionPercent)
+                    {
+                        winnerId = user2State.Key;
+                        loserId = user1State.Key;
+                    }
+                    var ratings = await ratingService.UpdateUsersRatings(
+                        winnerId, 
+                        GameResultType.VictoryByCompletionPercent,
+                        loserId, 
+                        GameResultType.DefeatByCompletionPercent,
+                        GameMode);
+                    GameResult = new GameSessionResult(new Dictionary<string, GameResultType>
+                    {
+                        { winnerId, GameResultType.VictoryByCompletionPercent },
+                        { loserId, GameResultType.DefeatByCompletionPercent },
+                    }, 
+                    ratings.NewRatings, ratings.OldRatings);
+                }
+            }
+            else if (UserIds.Count == 1)
+            {
+                GameResult = new GameSessionResult(new Dictionary<string, GameResultType>
+                {
+                    { userStates.Keys.First(), GameResultType.Defeat }
+                },
+                null, null);
+            }
+        }
+
+        public async Task<GameResultDto> GetGameResult(string userId, IRatingService ratingService)
+        {
+            if (!HasResult)
+            {
+                throw new GameSessionException($"Session has no result. sessionId: {Id}");
+            }
+            if (userStates[userId].ResultWasCreated)
+            {
+                throw new GameSessionException($"A result has already been created for this user. userId: {userId}, sessionId: {Id}");
+            }
+
+            var userTime = GetUserTime(userId);
+            var isBestNewTime = userTime != -1 && await ratingService.UpdateSolvingRating(userId, userTime, GameMode);
+            var result = new GameResultDto
+            {
+                GameResultType = GameResult.UsersGameResults[userId],
+                NewDuelRating = GameResult.NewRatings?[userId] ?? -1 ,
+                OldDuelRating = GameResult.OldRatings?[userId] ?? -1,
+                Time = userTime,
+                IsNewBestTime = isBestNewTime,
+                BestTime = isBestNewTime ? userTime : await ratingService.GetUserSolvingRating(userId, GameMode),
+                GameMode = GameMode,
+                CompletionPercent = userStates[userId].CompletionPercent
+            };
+            userStates[userId].ResultWasCreated = true;
+            return result;
+        }
+
+        public bool UserResultWasCreated(string userId)
+        {
+            return userStates[userId].ResultWasCreated;
+        }
+
         private int GetCorrectlyFilledCount(RegularSudokuDto sudokuDto)
         {
             var puzzle = sudokuPuzzles[sudokuDto.Id];
@@ -168,6 +292,11 @@ namespace SudokuGameBackend.BLL.Services
                 }
             }
             return correctlyFilled;
+        }
+
+        public void Dispose()
+        {
+            sessionTimer.Close();
         }
     }
 }

@@ -9,5 +9,7 @@ namespace SudokuGameBackend.BLL.Services
         public bool IsReady { get; set; }
         public DateTime? FinishTime { get; set; }
         public string ConnectionId { get; set; }
+        public int CompletionPercent { get; set; }
+        public bool ResultWasCreated { get; set; }
     }
 }

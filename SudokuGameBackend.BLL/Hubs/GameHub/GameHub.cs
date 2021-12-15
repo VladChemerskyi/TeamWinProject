@@ -121,47 +121,22 @@ namespace SudokuGameBackend.BLL.Hubs
                         session.SetFinishTime(Context.UserIdentifier, DateTime.Now);
                         logger.LogDebug($"User solved puzzle. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                         session.Semaphore.WaitOne();
-                        if (!session.HasWinner)
+                        if (!session.HasResult)
                         {
                             logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                            if (session.UserIds.Count == 2)
-                            {
-                                var winnerId = Context.UserIdentifier;
-                                var loserId = session.UserIds.Where(id => id != winnerId).First();
-                                var ratings = await ratingService.CalculateDuelRatings(winnerId, loserId, session.GameMode);
-                                foreach (var pair in ratings)
-                                {
-                                    await ratingService.UpdateDuelRating(pair.Key, session.GameMode, pair.Value);
-                                }
-                                session.GameResult = new GameSessionResult(winnerId, ratings);
-                            }
-                            else if (session.UserIds.Count == 1)
-                            {
-                                var newRatings = new Dictionary<string, int>
-                                {
-                                    { Context.UserIdentifier, -1 }
-                                };
-                                session.GameResult = new GameSessionResult(Context.UserIdentifier, newRatings);
-                            }
+                            await session.CreatePuzzleSolvedResult(Context.UserIdentifier, ratingService);
                         }
-                        var time = session.GetUserTime(Context.UserIdentifier);
-                        bool isNewBestTime = await ratingService.UpdateSolvingRating(Context.UserIdentifier, time, session.GameMode);
-                        var gameResult = new GameResult
-                        {
-                            IsVictory = session.GameResult.WinnerId == Context.UserIdentifier,
-                            NewDuelRating = session.GameResult.NewRatings[Context.UserIdentifier],
-                            Time = time,
-                            IsNewBestTime = isNewBestTime
-                        };
+                        session.SetUserCompletionPercent(Context.UserIdentifier, 10000);
+                        var gameResult = await session.GetGameResult(Context.UserIdentifier, ratingService);
                         session.Semaphore.Release();
-                        logger.LogDebug($"User result. userId: {Context.UserIdentifier}, sessionId: {sessionId}," + 
-                            $" isVictory: {gameResult.IsVictory}, newDuelRating: {gameResult.NewDuelRating}, time: {gameResult.Time}");
+                        logger.LogDebug($"User result. userId: {Context.UserIdentifier}, sessionId: {sessionId}, GameResult: {gameResult}");
                         await Clients.Caller.SendAsync("GameResult", gameResult);
                         logger.LogTrace($"GameResult sent. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                     }
+                    var completionPercent = session.GetCompleteonPercent(sudokuDtos);
+                    session.SetUserCompletionPercent(Context.UserIdentifier, completionPercent);
                     if (session.UserIds.Count > 1)
                     {
-                        var completionPercent = session.GetCompleteonPercent(sudokuDtos);
                         foreach (var userId in session.UserIds)
                         {
                             if (userId != Context.UserIdentifier)

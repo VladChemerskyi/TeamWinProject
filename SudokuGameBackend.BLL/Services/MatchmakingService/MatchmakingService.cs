@@ -33,9 +33,9 @@ namespace SudokuGameBackend.BLL.Services
         public void RemoveFromQueue(string userId)
         {
             mutex.WaitOne();
-            queue.RemoveAll(item => item.UserId == userId);
+            int nRemoved = queue.RemoveAll(item => item.UserId == userId);
             mutex.ReleaseMutex();
-            logger.LogDebug($"Removed from queue. userId: {userId}");
+            logger.LogDebug($"Removed from queue. userId: {userId}, nRemoved: {nRemoved}");
         }
 
         public bool TryFindOpponent(GameMode gameMode, int rating, string userId, out string opponentId)
@@ -44,11 +44,11 @@ namespace SudokuGameBackend.BLL.Services
             bool opponentFound = false;
             opponentId = null;
             mutex.WaitOne();
-            var mathcedItem = queue.FirstOrDefault(item => userId != item.UserId && item.Match(gameMode, rating));
-            if (mathcedItem != null)
+            var matchedItem = queue.FirstOrDefault(item => userId != item.UserId && item.Match(gameMode, rating));
+            if (matchedItem != null)
             {
-                queue.Remove(mathcedItem);
-                opponentId = mathcedItem.UserId;
+                queue.Remove(matchedItem);
+                opponentId = matchedItem.UserId;
                 opponentFound = true;
                 logger.LogDebug($"TryFindOpponent success. userId: {userId}, opponentId: {opponentId}");
             }

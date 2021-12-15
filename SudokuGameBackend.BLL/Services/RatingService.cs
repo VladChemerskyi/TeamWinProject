@@ -12,9 +12,17 @@ using SudokuGameBackend.BLL.DTO;
 using System.Collections.Concurrent;
 using AutoMapper;
 using SudokuGameBackend.BLL.InputModels;
+using SudokuStandard;
+using SudokuGameBackend.BLL.Helpers;
 
 namespace SudokuGameBackend.BLL.Services
 {
+    public class Ratings : IRatings
+    {
+        public Dictionary<string, int> OldRatings { get; set; }
+        public Dictionary<string, int> NewRatings { get; set; }
+    }
+
     public class RatingService : IRatingService
     {
         private readonly int maxRatingDeltaForGame = 16;
@@ -31,46 +39,61 @@ namespace SudokuGameBackend.BLL.Services
             this.mapper = mapper;
         }
 
-        public async Task<Dictionary<string, int>> CalculateDuelRatings(string winnerId, string loserId, GameMode gameMode)
+        public async Task<IRatings> UpdateUsersRatings(
+            string user1Id, GameResultType user1GameResult, string user2Id, GameResultType user2GameResult, GameMode gameMode)
         {
-            var winnerRating = await unitOfWork.DuelRatingRepository.GetAsync(winnerId, gameMode);
-            var loserRating = await unitOfWork.DuelRatingRepository.GetAsync(loserId, gameMode);
+            var user1Rating = await unitOfWork.DuelRatingRepository.GetAsync(user1Id, gameMode);
+            var user1OldRating = user1Rating.Rating;
+            var user2Rating = await unitOfWork.DuelRatingRepository.GetAsync(user2Id, gameMode);
+            var user2OldRating = user2Rating.Rating;
 
-            int newWinnerRating = CalculateNewWinnerRating(winnerRating.Rating, loserRating.Rating);
-            int newLoserRating = CalculateNewLoserRating(loserRating.Rating, winnerRating.Rating);
+            var user1NewRating = CalculateDuelRating(user1OldRating, user2OldRating, user1GameResult);
+            var user2NewRating = CalculateDuelRating(user2OldRating, user1OldRating, user2GameResult);
 
-            return new Dictionary<string, int>
+            user1Rating.Rating = user1NewRating;
+            user2Rating.Rating = user2NewRating;
+
+            unitOfWork.DuelRatingRepository.Update(user1Rating);
+            logger.LogDebug($"UpdateDuelRating. userId: {user1Id}, gameMode: {gameMode}, oldRating: {user1OldRating}, newRating: {user1NewRating}");
+            unitOfWork.DuelRatingRepository.Update(user2Rating);
+            logger.LogDebug($"UpdateDuelRating. userId: {user2Id}, gameMode: {gameMode}, oldRating: {user2OldRating}, newRating: {user2NewRating}");
+            await unitOfWork.SaveAsync();
+
+            return new Ratings
             {
-                { winnerId, newWinnerRating },
-                { loserId,  newLoserRating  }
+                OldRatings = new Dictionary<string, int>
+                {
+                    { user1Id, user1OldRating },
+                    { user2Id, user2OldRating },
+                },
+                NewRatings = new Dictionary<string, int>
+                {
+                    { user1Id, user1NewRating },
+                    { user2Id, user2NewRating },
+                }
             };
         }
 
-        public async Task UpdateDuelRating(string userId, GameMode gameMode, int rating)
+        int CalculateDuelRating(int userRating, int opponentRating, GameResultType userGameResult)
         {
-            var duelRating = await unitOfWork.DuelRatingRepository.GetAsync(userId, gameMode);
-            logger.LogDebug($"UpdateDuelRating. userId: {userId}, gameMode: {gameMode}, oldRating: {duelRating.Rating}, newRating: {rating}");
-            duelRating.Rating = rating;
-            unitOfWork.DuelRatingRepository.Update(duelRating);
-            await unitOfWork.SaveAsync();
-            logger.LogTrace($"UpdateDuelRating success. userId: {userId}, gameMode: {gameMode}");
+            double points = userGameResult switch
+            {
+                GameResultType.Victory => 1,
+                GameResultType.VictoryByCompletionPercent => 0.75,
+                GameResultType.Draw => 0.5,
+                GameResultType.DefeatByCompletionPercent => 0.25,
+                GameResultType.Defeat => 0,
+                _ => throw new RatingServiceException($"Invalid gameResultType value: {userGameResult}"),
+            };
+            return CalculateUserRating(userRating, opponentRating, points);
         }
 
-        private int CalculateUserRating(int currentUserRating, int currentOpponentRating, bool isWinner)
+        private int CalculateUserRating(int currentUserRating, int currentOpponentRating, double points)
         {
             double expected = 1 / (1 + Math.Pow(10, (currentOpponentRating - currentUserRating) / 400d));
-            int newUserRating = currentUserRating + (int)Math.Round(maxRatingDeltaForGame * ((isWinner ? 1 : 0) - expected));
-            return newUserRating;
-        }
-
-        private int CalculateNewWinnerRating(int winnerRating, int loserRating)
-        {
-            return CalculateUserRating(winnerRating, loserRating, true);
-        }
-
-        private int CalculateNewLoserRating(int loserRating, int winnerRating)
-        {
-            return CalculateUserRating(loserRating, winnerRating, false);
+            var ratingDelta = new RatingDeltaMatcher().GetRatingDelta(currentUserRating);
+            int newUserRating = currentUserRating + (int)Math.Round(ratingDelta * (points - expected));
+            return newUserRating < 0 ? 0 : newUserRating;
         }
 
         public async Task<bool> UpdateSolvingRating(string userId, int time, GameMode gameMode)
@@ -114,7 +137,7 @@ namespace SudokuGameBackend.BLL.Services
                     {
                         UserId = userId,
                         GameMode = gameMode,
-                        Rating = 1400
+                        Rating = 1000
                     });
                 }
             }
@@ -143,7 +166,7 @@ namespace SudokuGameBackend.BLL.Services
 
         public async Task<int> GetUserSolvingRating(string userId, GameMode gameMode)
         {
-            int userBestSolvingTime = 0;
+            int userBestSolvingTime = -1;
             var userRating = await unitOfWork.SolvingRatingRepository.GetAsync(userId, gameMode);
             if (userRating != null)
             {
@@ -193,6 +216,22 @@ namespace SudokuGameBackend.BLL.Services
                 gameModsRatings[gameMode].Add(mapper.Map<RatingDto>(rating));
             }
             return gameModsRatings;
+        }
+    }
+
+    class RatingDeltaMatcher
+    {
+        private readonly Dictionary<RatingRange, int> ratingDeltaDict = new Dictionary<RatingRange, int>
+        {
+            { new RatingRange(0, 600), 25 },
+            { new RatingRange(601, 2400), 15 },
+            { new RatingRange(2401, 3000), 10 },
+            { new RatingRange(3001, int.MaxValue), 5 },
+        };
+
+        public int GetRatingDelta(int rating)
+        {
+            return ratingDeltaDict.First(pair => pair.Key.Matches(rating)).Value;
         }
     }
 }
