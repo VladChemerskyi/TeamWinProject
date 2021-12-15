@@ -143,8 +143,7 @@ namespace SudokuGameBackend.BLL.Hubs
                         if (!session.HasResult)
                         {
                             logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
-                            await session.CreatePuzzleSolvedResult(Context.UserIdentifier, ratingService);
-                            await statsService.IncrementDuelWinsCount(Context.UserIdentifier, session.GameMode);
+                            await session.CreatePuzzleSolvedResult(Context.UserIdentifier, ratingService, statsService);
                         }
                         session.SetUserCompletionPercent(Context.UserIdentifier, 10000);
                         var gameResult = await session.GetGameResult(Context.UserIdentifier, ratingService);

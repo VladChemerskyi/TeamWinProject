@@ -52,7 +52,8 @@ namespace SudokuGameBackend.Controllers
                     userRecord = await FirebaseAuth.DefaultInstance?.CreateUserAsync(new UserRecordArgs
                     {
                         Email = input.Email,
-                        Password = input.Password
+                        Password = input.Password,
+                        DisplayName = input.Email
                     });
                     await userService.AddUser(new AddUserDto
                     {
@@ -232,18 +233,19 @@ namespace SudokuGameBackend.Controllers
         }
 
         [Authorize]
-        [HttpGet("{id}/stats")]
+        [HttpGet("stats")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<Dictionary<int, UserStatsItemDto>>> GetUserStats(string id)
+        public async Task<ActionResult<Dictionary<int, UserStatsItemDto>>> GetUserStats()
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             try
             {
-                return await userService.GetUserStats(id);
+                return await userService.GetUserStats(userId);
             }
             catch (Exception ex)
             {
-                logger.LogWarning($"GetUserStats. userId: {id}, exception: {ex}");
+                logger.LogWarning($"GetUserStats. userId: {userId}, exception: {ex}");
                 return BadRequest();
             }
         }

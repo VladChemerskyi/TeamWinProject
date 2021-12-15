@@ -163,7 +163,7 @@ namespace SudokuGameBackend.BLL.Services
             return userStates[userId].ConnectionId;
         }
 
-        public async Task CreatePuzzleSolvedResult(string winnerId, IRatingService ratingService)
+        public async Task CreatePuzzleSolvedResult(string winnerId, IRatingService ratingService, IStatsService statsService)
         {
             if (HasResult)
             {
@@ -181,6 +181,7 @@ namespace SudokuGameBackend.BLL.Services
                     { loserId, GameResultType.Defeat },
                 }, 
                 ratings.NewRatings, ratings.OldRatings);
+                await statsService.IncrementDuelWinsCount(winnerId, GameMode);
             }
             else if (UserIds.Count == 1)
             {
