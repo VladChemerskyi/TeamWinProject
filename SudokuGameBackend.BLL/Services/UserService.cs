@@ -12,6 +12,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Linq;
+using System.Net.Http;
+using Newtonsoft.Json;
 
 namespace SudokuGameBackend.BLL.Services
 {
@@ -50,7 +52,41 @@ namespace SudokuGameBackend.BLL.Services
             {
                 throw new ItemNotFoundException($"Item not found. Id: {id}");
             }
-            return mapper.Map<UserDto>(user);
+            var userDto = mapper.Map<UserDto>(user);
+            if (user.CountryCode != null)
+            {
+                userDto.Country = await GetCountryByCode(user.CountryCode);
+            }
+            return userDto;
+        }
+
+        private async Task<CountryDto> GetCountryByCode(string code)
+        {
+            using var client = new HttpClient();
+            var reponse = await client.GetStringAsync($"https://restcountries.eu/rest/v2/alpha/{code}?fields=nativeName;alpha2Code");
+            return JsonConvert.DeserializeObject<CountryDto>(reponse);
+        }
+
+        public async Task UpdateUser(string id, UpdateUserInput updateUserInput)
+        {
+            User user = await unitOfWork.UserRepository.GetAsync(id);
+            user.Name = updateUserInput.Name;
+            user.CountryCode = updateUserInput.CountryCode;
+            unitOfWork.UserRepository.Update(user);
+            await unitOfWork.SaveAsync();
+        }
+
+        public async Task DeleteUser(string id)
+        {
+            await unitOfWork.UserRepository.DeleteAsync(id);
+            await unitOfWork.SaveAsync();
+        }
+
+        public async Task<bool> IsUserNameCanBeUpdated(string userName, string userId)
+        {
+            return (await unitOfWork.UserRepository
+                .FindAsync(user => user.Name.ToLower() == userName.ToLower() && user.Id != userId))
+                .Count == 0;
         }
 
         public async Task<bool> IsUserNameAvailable(string userName)
@@ -84,21 +120,27 @@ namespace SudokuGameBackend.BLL.Services
             return userName;
         }
 
-        public async Task<UserStatsDto> GetUserStats(string id)
+        public async Task<Dictionary<int, UserStatsItemDto>> GetUserStats(string id)
         {
-            var duelStats = new Dictionary<int, int>((await unitOfWork.DuelRatingRepository
-                .FindAsync(rating => rating.UserId == id))
-                .Select(rating => new KeyValuePair<int, int>((int)rating.GameMode, rating.Rating)));
-
-            var solvingStats = new Dictionary<int, int>((await unitOfWork.SolvingRatingRepository
-                .FindAsync(rating => rating.UserId == id))
-                .Select(rating => new KeyValuePair<int, int>((int)rating.GameMode, rating.Time)));
-
-            return new UserStatsDto
+            var userStats = new Dictionary<int, UserStatsItemDto>();
+            foreach (GameMode gameMode in Enum.GetValues(typeof(GameMode)))
             {
-                DuelStats = duelStats,
-                SolvingStats = solvingStats
-            };
+                userStats.Add((int)gameMode, new UserStatsItemDto());
+            }
+
+            var duelStats = await unitOfWork.DuelRatingRepository.FindAsync(rating => rating.UserId == id);
+            foreach (var duelRating in duelStats)
+            {
+                userStats[(int)duelRating.GameMode].DuelRating = duelRating.Rating;
+            }
+
+            var solvingStats = await unitOfWork.SolvingRatingRepository.FindAsync(rating => rating.UserId == id);
+            foreach (var solvingTime in solvingStats)
+            {
+                userStats[(int)solvingTime.GameMode].SolvingTime = solvingTime.Time;
+            }
+
+            return userStats;
         }
     }
 }
