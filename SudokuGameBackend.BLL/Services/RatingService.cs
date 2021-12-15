@@ -30,6 +30,8 @@ namespace SudokuGameBackend.BLL.Services
         private readonly ILogger<RatingService> logger;
         private readonly ICacheService cacheService;
         private readonly IMapper mapper;
+        private readonly int calibrationGames = 5;
+        private readonly int ratingSize = 100;
 
         public RatingService(IUnitOfWork unitOfWork, ILogger<RatingService> logger, ICacheService cacheService, IMapper mapper)
         {
@@ -175,23 +177,52 @@ namespace SudokuGameBackend.BLL.Services
             return userBestSolvingTime;
         }
 
-        public async Task<List<RatingDto>> GetDuelLeaderboardAsync(GetLeaderboardInput input)
+        public async Task<LeaderboardDto> GetDuelLeaderboardAsync(GetLeaderboardInput input, string userId)
         {
             var leaderboards = await cacheService.GetOrCreateAsync(CacheKeys.DuelRating,
                 TimeSpan.FromMinutes(1), CreateDuelRatingCacheAsync);
-            return leaderboards[input.GameMode.Value].Skip(input.Index).Take(input.Count).ToList();
+            return await GetLeaderboardDto(userId, input, leaderboards, true);
         }
 
-        public async Task<List<RatingDto>> GetSolvingLeaderboardAsync(GetLeaderboardInput input)
+        public async Task<LeaderboardDto> GetSolvingLeaderboardAsync(GetLeaderboardInput input, string userId)
         {
             var leaderboards = await cacheService.GetOrCreateAsync(CacheKeys.SolvingRating,
                 TimeSpan.FromMinutes(1), CreateSolvingRatingCacheAsync);
-            return leaderboards[input.GameMode.Value].Skip(input.Index).Take(input.Count).ToList();
+            return await GetLeaderboardDto(userId, input, leaderboards, false);
+        }
+
+        private async Task<LeaderboardDto> GetLeaderboardDto(
+            string userId, 
+            GetLeaderboardInput input, 
+            ConcurrentDictionary<GameMode, List<RatingDto>> leaderboards,
+            bool includeCalibrationInfo)
+        {
+            var leaderboard = leaderboards[input.GameMode.Value];
+            var ratings = leaderboard.Take(ratingSize).ToList();
+            RatingDto currentPlace = null;
+            int? calibrationGamesLeft = null;
+            if (userId != null)
+            {
+                currentPlace = leaderboard.FirstOrDefault(r => r.Id == userId);
+                if (currentPlace == null && includeCalibrationInfo)
+                {
+                    calibrationGamesLeft = await GetCalibrationGames(userId, input.GameMode.Value);
+                }
+            }
+            return new LeaderboardDto
+            {
+                Ratings = ratings,
+                CurrentPlace = currentPlace,
+                CalibrationGamesLeft = calibrationGamesLeft
+            };
         }
 
         private async Task<ConcurrentDictionary<GameMode, List<RatingDto>>> CreateDuelRatingCacheAsync()
         {
-            var duelRatingValues = (await unitOfWork.DuelRatingRepository.GetAllAsync()).OrderByDescending(r => r.Rating);
+            var duelStats = await unitOfWork.DuelStatsRepository.FindAsync(stats => stats.GamesStarted >= calibrationGames);
+            var duelRatingValues = (await unitOfWork.DuelRatingRepository.GetAllAsync())
+                .Where(r => duelStats.Exists(s => s.UserId == r.UserId && s.GameMode == r.GameMode))
+                .OrderByDescending(r => r.Rating);
             return CreateRatingCache(duelRatingValues, r => r.GameMode);
         }
 
@@ -213,9 +244,22 @@ namespace SudokuGameBackend.BLL.Services
             foreach (var rating in sortedValues)
             {
                 var gameMode = gameModeSelector.Invoke(rating);
-                gameModsRatings[gameMode].Add(mapper.Map<RatingDto>(rating));
+                var ratingDto = mapper.Map<RatingDto>(rating);
+                ratingDto.Place = gameModsRatings[gameMode].Count + 1;
+                gameModsRatings[gameMode].Add(ratingDto);
             }
             return gameModsRatings;
+        }
+
+        private async Task<int?> GetCalibrationGames(string userId, GameMode gameMode)
+        {
+            var stats = await unitOfWork.DuelStatsRepository.GetAsync(userId, gameMode);
+            var gamesLeft = calibrationGames - stats.GamesStarted;
+            if (gamesLeft <= 0)
+            {
+                return null;
+            }
+            return gamesLeft;
         }
     }
 

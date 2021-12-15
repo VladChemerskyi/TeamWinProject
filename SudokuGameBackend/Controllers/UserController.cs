@@ -11,6 +11,7 @@ using SudokuGameBackend.BLL.Interfaces;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Threading.Tasks;
 
 namespace SudokuGameBackend.Controllers
@@ -21,12 +22,18 @@ namespace SudokuGameBackend.Controllers
     {
         private readonly IUserService userService;
         private readonly IRatingService ratingService;
+        private readonly IStatsService statsService;
         private readonly ILogger<UserController> logger;
 
-        public UserController(IUserService userService, IRatingService ratingService, ILogger<UserController> logger)
+        public UserController(
+            IUserService userService, 
+            IRatingService ratingService, 
+            IStatsService statsService, 
+            ILogger<UserController> logger)
         {
             this.userService = userService;
             this.ratingService = ratingService;
+            this.statsService = statsService;
             this.logger = logger;
         }
 
@@ -55,7 +62,8 @@ namespace SudokuGameBackend.Controllers
                     });
                     // TODO: Add catch for this.
                     await ratingService.SetInitialDuelRating(userRecord.Uid);
-                    return CreatedAtAction("GetUser", new { id = userRecord.Uid }, input);
+                    await statsService.SetInitialStats(userRecord.Uid);
+                    return CreatedAtAction("GetUser", input);
                 }
                 else
                 {
@@ -117,7 +125,8 @@ namespace SudokuGameBackend.Controllers
                         });
                         // TODO: Add catch for this.
                         await ratingService.SetInitialDuelRating(userRecord.Uid);
-                        return CreatedAtAction("GetUser", new { id = userRecord.Uid }, addUserInput);
+                        await statsService.SetInitialStats(userRecord.Uid);
+                        return CreatedAtAction("GetUser", addUserInput);
                     }
                     else
                     {
@@ -141,19 +150,84 @@ namespace SudokuGameBackend.Controllers
         }
 
         [Authorize]
-        [HttpGet("{id}", Name = "GetUser")]
+        [HttpGet(Name = "GetUser")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
-        public async Task<ActionResult<UserDto>> GetUser(string id)
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<ActionResult<UserDto>> GetUser()
         {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             try
             {
-                return await userService.GetUser(id);
+                return await userService.GetUser(userId);
             }
             catch (ItemNotFoundException ex)
             {
-                logger.LogWarning($"GetUser. User not found. userId: {id}");
+                logger.LogWarning($"GetUser. User not found. userId: {userId}");
                 return NotFound(new { error = ex.Message });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"GetUser exception. userId: {userId}, {ex}");
+                return new StatusCodeResult(500);
+            }
+        }
+
+        [Authorize]
+        [HttpPut()]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> UpdateUser(UpdateUserInput updateUserInput, 
+            [FromServices] IOptions<ApiBehaviorOptions> apiBehaviorOptions)
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            try
+            {
+                if (!await userService.DoesUserExist(userId))
+                {
+                    logger.LogDebug($"UpdateUser. User does not exist. userId: {userId}");
+                    return BadRequest();
+                }
+                else if (!await userService.IsUserNameCanBeUpdated(updateUserInput.Name, userId))
+                {
+                    logger.LogDebug($"UpdateUser. Name '{updateUserInput.Name}' is already in use.");
+                    ModelState.AddModelError("Name", $"Name '{updateUserInput.Name}' is already in use.");
+                    return apiBehaviorOptions.Value.InvalidModelStateResponseFactory(ControllerContext);
+                }
+
+                await userService.UpdateUser(userId, updateUserInput);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"UpdateUser exception. {updateUserInput}, userId: {userId}, {ex}");
+                return BadRequest();
+            }
+        }
+
+        [Authorize]
+        [HttpDelete()]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> DeleteUser()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            try
+            {
+                if (!await userService.DoesUserExist(userId))
+                {
+                    logger.LogDebug($"DeleteUser. User does not exist. userId: {userId}");
+                    return BadRequest();
+                }
+
+                await FirebaseAuth.DefaultInstance.DeleteUserAsync(userId);
+                await userService.DeleteUser(userId);
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning($"DeleteUser exception. userId: {userId}, {ex}");
+                return BadRequest();
             }
         }
 
@@ -161,7 +235,7 @@ namespace SudokuGameBackend.Controllers
         [HttpGet("{id}/stats")]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<UserStatsDto>> GetUserStats(string id)
+        public async Task<ActionResult<Dictionary<int, UserStatsItemDto>>> GetUserStats(string id)
         {
             try
             {

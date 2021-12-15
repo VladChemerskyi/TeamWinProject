@@ -19,17 +19,20 @@ namespace SudokuGameBackend.BLL.Hubs
         private readonly IGameSessionsService gameSessionsService;
         private readonly IRatingService ratingService;
         private readonly IUserService userService;
+        private readonly IStatsService statsService;
         private readonly ILogger<GameHub> logger;
 
         public GameHub(
             IGameSessionsService gameSessionsService, 
             IRatingService ratingService, 
             IUserService userService,
+            IStatsService statsService,
             ILogger<GameHub> logger)
         {
             this.gameSessionsService = gameSessionsService;
             this.ratingService = ratingService;
             this.userService = userService;
+            this.statsService = statsService;
             this.logger = logger;
         }
 
@@ -60,6 +63,12 @@ namespace SudokuGameBackend.BLL.Hubs
                         }
                         await Task.WhenAll(tasks);
                         session.SetStartTime(DateTime.Now);
+
+                        var gamesCountIncrementMethod = GetGamesCountIncrementMethod(session.UserIds.Count);
+                        foreach (var userId in session.UserIds)
+                        {
+                            await gamesCountIncrementMethod.Invoke(userId, session.GameMode);
+                        }
                     }
                 }
                 else
@@ -72,6 +81,16 @@ namespace SudokuGameBackend.BLL.Hubs
                 logger.LogWarning($"GameInit exception: {ex}");
                 await Clients.Caller.SendAsync("Error");
             }
+        }
+
+        private Func<string, GameMode, Task> GetGamesCountIncrementMethod(int usersCount)
+        {
+            Func<string, GameMode, Task> method = statsService.IncrementSingleGamesCount;
+            if (usersCount > 1)
+            {
+                method = statsService.IncrementDuelGamesCount;
+            }
+            return method;
         }
 
         private async Task<List<UserInfo>> GetPlayersInfo(GameSession session)
@@ -125,6 +144,7 @@ namespace SudokuGameBackend.BLL.Hubs
                         {
                             logger.LogDebug($"User won. userId: {Context.UserIdentifier}, sessionId: {sessionId}");
                             await session.CreatePuzzleSolvedResult(Context.UserIdentifier, ratingService);
+                            await statsService.IncrementDuelWinsCount(Context.UserIdentifier, session.GameMode);
                         }
                         session.SetUserCompletionPercent(Context.UserIdentifier, 10000);
                         var gameResult = await session.GetGameResult(Context.UserIdentifier, ratingService);

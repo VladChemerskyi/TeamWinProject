@@ -10,6 +10,8 @@ namespace SudokuGameBackend.DAL.Interfaces
         IUserRepository UserRepository { get; }
         IDuelRatingRepository DuelRatingRepository { get; }
         ISolvingRatingRepository SolvingRatingRepository { get; }
+        ISingleStatsRepository SingleStatsRepository { get; }
+        IDuelStatsRepository DuelStatsRepository { get; }
         void Save();
         Task SaveAsync();
     }

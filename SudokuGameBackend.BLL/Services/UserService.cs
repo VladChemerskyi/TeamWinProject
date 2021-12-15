@@ -128,18 +128,36 @@ namespace SudokuGameBackend.BLL.Services
                 userStats.Add((int)gameMode, new UserStatsItemDto());
             }
 
-            var duelStats = await unitOfWork.DuelRatingRepository.FindAsync(rating => rating.UserId == id);
-            foreach (var duelRating in duelStats)
+            var duelRatings = await unitOfWork.DuelRatingRepository.FindAsync(rating => rating.UserId == id);
+            foreach (var duelRating in duelRatings)
             {
                 userStats[(int)duelRating.GameMode].DuelRating = duelRating.Rating;
             }
 
-            var solvingStats = await unitOfWork.SolvingRatingRepository.FindAsync(rating => rating.UserId == id);
-            foreach (var solvingTime in solvingStats)
+            var solvingRatings = await unitOfWork.SolvingRatingRepository.FindAsync(rating => rating.UserId == id);
+            foreach (var solvingTime in solvingRatings)
             {
                 userStats[(int)solvingTime.GameMode].SolvingTime = solvingTime.Time;
             }
 
+            var singleStats = await unitOfWork.SingleStatsRepository.FindAsync(stats => stats.UserId == id);
+            foreach (var stats in singleStats)
+            {
+                userStats[(int)stats.GameMode].SingleGamesStarted = stats.GamesStarted;
+            }
+
+            var duelStats = await unitOfWork.DuelStatsRepository.FindAsync(stats => stats.UserId == id);
+            foreach (var stats in duelStats)
+            {
+                var userStatsItem = userStats[(int)stats.GameMode];
+                userStatsItem.DuelGamesStarted = stats.GamesStarted;
+                userStatsItem.DuelGamesWon = stats.GamesWon;
+                userStatsItem.TotalGamesStarted = userStatsItem.SingleGamesStarted + userStatsItem.DuelGamesStarted;
+                if (stats.GamesStarted > 0)
+                {
+                    userStatsItem.DuelGameWinsPercent = (int)((double)stats.GamesWon / stats.GamesStarted * 100);
+                }
+            }
             return userStats;
         }
     }

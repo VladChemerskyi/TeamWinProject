@@ -15,8 +15,8 @@ namespace SudokuGameBackend.BLL.Interfaces
         Task<int> RemoveDuelRatingForInactivity(string userId, GameMode gameMode);
         Task<int> GetUserRating(string userId, GameMode gameMode);
         Task<int> GetUserSolvingRating(string userId, GameMode gameMode);
-        Task<List<RatingDto>> GetDuelLeaderboardAsync(GetLeaderboardInput input);
-        Task<List<RatingDto>> GetSolvingLeaderboardAsync(GetLeaderboardInput input);
+        Task<LeaderboardDto> GetDuelLeaderboardAsync(GetLeaderboardInput input, string userId);
+        Task<LeaderboardDto> GetSolvingLeaderboardAsync(GetLeaderboardInput input, string userId);
         Task<IRatings> UpdateUsersRatings(
             string user1Id, GameResultType user1GameResult, string user2Id, GameResultType user2GameResult, GameMode gameMode);
     }

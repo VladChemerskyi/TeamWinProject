@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using SudokuGameBackend.BLL.Helpers;
 using SudokuGameBackend.BLL.Hubs;
 using SudokuGameBackend.BLL.Interfaces;
 using System;
@@ -68,6 +69,7 @@ namespace SudokuGameBackend.BLL.Services
                 logger.LogDebug($"Session ended. sessionId: {session.Id}");
                 using var scope = serviceScopeFactory.CreateScope();
                 var ratingService = scope.ServiceProvider.GetService<IRatingService>();
+                var statsService = scope.ServiceProvider.GetService<IStatsService>();
                 var gameHubContext = scope.ServiceProvider.GetService<IHubContext<GameHub>>();
                 session.Semaphore.WaitOne();
                 if (!session.HasResult)
@@ -82,6 +84,11 @@ namespace SudokuGameBackend.BLL.Services
                         logger.LogDebug($"User result. userId: {userId}, sessionId: {session.Id}, GameResult: {gameResult}");
                         await gameHubContext.Clients.Client(session.GetUserConnectionId(userId)).SendAsync("GameTimeExpired", gameResult);
                         logger.LogTrace($"GameTimeExpired sent. userId: {userId}, sessionId: {session.Id}, gameResult: {gameResult}");
+                        
+                        if (gameResult.GameResultType.IsVictory() && session.UserIds.Count > 1)
+                        {
+                            await statsService.IncrementDuelWinsCount(userId, session.GameMode);
+                        }
                     }
                 }
                 session.Semaphore.Release();

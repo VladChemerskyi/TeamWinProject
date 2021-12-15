@@ -12,4 +12,12 @@ namespace SudokuGameBackend.BLL.Helpers
         DefeatByCompletionPercent,
         Draw
     }
+
+    public static class GameResultTypeExtension
+    {
+        public static bool IsVictory(this GameResultType gameResultType)
+        {
+            return gameResultType == GameResultType.Victory || gameResultType == GameResultType.VictoryByCompletionPercent;
+        }
+    }
 }

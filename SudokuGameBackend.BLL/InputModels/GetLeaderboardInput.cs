@@ -9,12 +9,10 @@ namespace SudokuGameBackend.BLL.InputModels
     {
         [Required]
         public GameMode? GameMode { get; set; }
-        public int Index { get; set; } = 0;
-        public int Count { get; set; } = 20;
 
         public override string ToString()
         {
-            return $"GetRatingInput(GameMode: {GameMode}, Index: {Index}, Count: {Count})";
+            return $"GetRatingInput(GameMode: {GameMode})";
         }
     }
 }
