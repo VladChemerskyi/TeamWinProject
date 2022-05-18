@@ -60,10 +60,13 @@ namespace SudokuGameBackend
                 });
             }
 
-            FirebaseApp.Create(new AppOptions()
+            if (FirebaseApp.DefaultInstance == null)
             {
-                Credential = GoogleCredential.GetApplicationDefault(),
-            });
+                FirebaseApp.Create(new AppOptions()
+                {
+                    Credential = GoogleCredential.GetApplicationDefault(),
+                });
+            }
 
             services.AddSingleton<IGameSessionsService, GameSessionsService>();
             services.AddSingleton<IMatchmakingService, MatchmakingService>();
