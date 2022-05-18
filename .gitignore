@@ -342,3 +342,5 @@ healthchecksdb
 # Custom
 SudokuGameBackend/web.config
 SudokuGameBackend/appsettings.Production.json
+
+obj/
