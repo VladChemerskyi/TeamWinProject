@@ -119,7 +119,7 @@ namespace SudokuStandard.Tests
         }
 
         [TestMethod()]
-        public void AverageGenerateTime()
+        private void AverageGenerateTime()
         {
             int iters = 50;
             var ratingRange = RatingRange.FromDifficultyLevel(DifficultyLevel.Diabolical);
@@ -129,7 +129,7 @@ namespace SudokuStandard.Tests
         }
 
         [TestMethod()]
-        public void AverageGenerateRandomBoardTime()
+        private void AverageGenerateRandomBoardTime()
         {
             int iters = 100;
             var generator = new RegularSudokuGenerator();
