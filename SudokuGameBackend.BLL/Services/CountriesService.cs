@@ -15,11 +15,13 @@ namespace SudokuGameBackend.BLL.Services
         private const string baseUrl = "https://restcountries.com/v2";
         private readonly ICacheService cacheService;
         private readonly ILogger<CountriesService> logger;
+        private readonly IHttpClientFactory httpClientFactory;
 
-        public CountriesService(ICacheService cacheService, ILogger<CountriesService> logger)
+        public CountriesService(ICacheService cacheService, ILogger<CountriesService> logger, IHttpClientFactory httpClientFactory)
         {
             this.cacheService = cacheService;
             this.logger = logger;
+            this.httpClientFactory = httpClientFactory;
         }
 
         public async Task<List<CountryDto>> GetAllCountries()
@@ -28,7 +30,7 @@ namespace SudokuGameBackend.BLL.Services
             {
                 return await cacheService.GetOrCreateAsync(CacheKeys.AllCountries, TimeSpan.FromDays(1), async () => 
                 {
-                    using var client = new HttpClient();
+                    using var client = httpClientFactory.CreateClient();
                     var reponse = await client.GetStringAsync($"{baseUrl}/all?fields=nativeName,alpha2Code");
                     return JsonConvert.DeserializeObject<List<CountryDto>>(reponse);
                 });
@@ -49,7 +51,7 @@ namespace SudokuGameBackend.BLL.Services
         {
             try
             {
-                using var client = new HttpClient();
+                using var client = httpClientFactory.CreateClient();
                 var reponse = await client.GetStringAsync($"{baseUrl}/alpha/{code}?fields=nativeName,alpha2Code");
                 return JsonConvert.DeserializeObject<CountryDto>(reponse);
             }
