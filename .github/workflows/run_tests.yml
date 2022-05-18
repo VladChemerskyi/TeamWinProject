@@ -1,25 +1,30 @@
-name: dotnet package
+name: build and test
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+    branches: [ main ]
+    paths:
+    - '**.cs'
+    - '**.csproj'
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        dotnet-version: [ '5.0.x', '2.0.x', '3.1.x' ]
-
+    name: build-and-test
     steps:
       - uses: actions/checkout@v3
-      - name: Setup .NET Core SDK ${{ matrix.dotnet-version }}
+      - name: Setup dotnet
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: ${{ matrix.dotnet-version }}
+          dotnet-version: |
+            5.0.x
+            
       - name: Install dependencies
         run: dotnet restore
+      
       - name: Build
         run: dotnet build --configuration Release --no-restore
+
       - name: Test
         run: dotnet test --no-restore --verbosity normal
-        
