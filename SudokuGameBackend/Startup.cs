@@ -60,10 +60,13 @@ namespace SudokuGameBackend
                 });
             }
 
-            FirebaseApp.Create(new AppOptions()
+            if (FirebaseApp.DefaultInstance == null)
             {
-                Credential = GoogleCredential.GetApplicationDefault(),
-            });
+                FirebaseApp.Create(new AppOptions()
+                {
+                    Credential = GoogleCredential.GetApplicationDefault(),
+                });
+            }
 
             services.AddSingleton<IGameSessionsService, GameSessionsService>();
             services.AddSingleton<IMatchmakingService, MatchmakingService>();
@@ -96,6 +99,7 @@ namespace SudokuGameBackend
 
             services.AddDalDependencies(Configuration.GetConnectionString("ConnectionString"));
             services.AddAutoMapper();
+            services.AddHttpClient();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
